@@ -1,6 +1,19 @@
 import mongoose from 'mongoose';
 
 const medicationSchema = new mongoose.Schema({
+  medicationName: {
+    type: String,
+    required: false
+  },
+  cause: {
+    type: String,
+    required: false
+  },
+  resolution: {
+    type: String,
+    required: false
+  },
+  // Legacy fields for backward compatibility
   startDate: {
     type: Date,
     default: Date.now
@@ -11,7 +24,7 @@ const medicationSchema = new mongoose.Schema({
   },
   medication: {
     type: String,
-    required: true
+    required: false
   },
   doseRoute: String,
   frequency: String,
@@ -25,14 +38,28 @@ const medicationSchema = new mongoose.Schema({
 const formDataSchema = new mongoose.Schema({
   // Basic Patient Information
   patientName: String,
+  patientName2: String,
   socialSecurity: String,
   phoneNumber: String,
   physician: String,
+  physicianName: String,
+  physicianFax: String,
   address: String,
   city: String,
   state: String,
   zip: String,
   patientNumber: String,
+  mrn: String,
+  mrNumber: String,
+  clientName: String,
+  dateOfBirth: Date,
+  age: String,
+  caregiverName: String,
+  primaryLanguage: String,
+  doctor: String,
+  relationship: String,
+  contactPhone: String,
+  evacuateTo: String,
 
   // Medical Information
   primaryDx: String,
@@ -58,10 +85,18 @@ const formDataSchema = new mongoose.Schema({
   otherDescription: String,
   priorityLevel: String,
 
+  // Additional Emergency and Page Fields
+  fundsInitials: String,
+  vehicleInitials: String,
+  relationshipToPatient: String,
+  agencyTitle: String,
+  referralSourceDate: String,
+
   // Pharmacy Information
   pharmacyName: String,
   pharmacyAddress: String,
   pharmacyPhone: String,
+  pharmacy: String,
 
   // Insurance Information
   insuranceCompanyName: String,
@@ -73,7 +108,7 @@ const formDataSchema = new mongoose.Schema({
   // Clinical Information
   clinicalManager: String,
   clinicalManagerContactInfo: String,
-  physicianName: String,
+  clinicianPrintName: String,
 
   // Service Descriptions
   dailyServicesYesDescription: String,
@@ -81,6 +116,23 @@ const formDataSchema = new mongoose.Schema({
   otherTherapyDesc: String,
   dialysisDesc: String,
   tubeFeedingDesc: String,
+
+  // Additional Service Fields
+  nursesName: String,
+  physicalTherapistName: String,
+  occupationalTherapistName: String,
+  allergies: String,
+  agencyName: String,
+  servicesPerception: String,
+  payerName: String,
+  projectCompletionPercent: String,
+  amountCovered: String,
+  skilledNursingFrequencyData: String,
+  physicalTherapyFrequencyData: String,
+  homeHealthFrequencyData: String,
+  occupationalTheraphyFrequencyData: String,
+  medicalSocialWorkerFrequencyData: String,
+  otherFrequencyData: String,
 
   // Vaccine Information
   fluOtherDesc: String,
@@ -114,6 +166,7 @@ const formDataSchema = new mongoose.Schema({
   agencyRepresentativeDate: Date,
   socDate: Date,
   clinicianDate: Date,
+  clinicianSignatureDate: Date,
   medicationProfileClinicianDate: Date,
   vaccineDate: Date,
   fluVaccineDate: Date,
@@ -130,6 +183,11 @@ const formDataSchema = new mongoose.Schema({
   patientSpouseRetirementDate: Date,
   serviceEndDate: Date,
   currentDate: Date,
+  date: Date,
+  authorizationPaymentDate: Date,
+  patientOrAuthorizedAgentSignatureDate: Date,
+  agencyRepresentativeSignatureDate: Date,
+  OASISDate: Date,
 
   // Boolean Fields (Checkboxes)
   consentForCare: { type: Boolean, default: false },
@@ -270,6 +328,35 @@ const formDataSchema = new mongoose.Schema({
   option9Yes: { type: Boolean, default: false },
   option9No: { type: Boolean, default: false },
 
+  // Additional Boolean Fields from Controller
+  hmoMembershipTrue: { type: Boolean, default: false },
+  hmoMembershipFalse: { type: Boolean, default: false },
+  billingMethodMedicaid: { type: Boolean, default: false },
+  billingMethodMedicare: { type: Boolean, default: false },
+  billingMethodInsurance: { type: Boolean, default: false },
+  billingMethodPrivatepay: { type: Boolean, default: false },
+  advanceDirectiveOption1: { type: Boolean, default: false },
+  advanceDirectiveOption2: { type: Boolean, default: false },
+  advanceDirectiveOption3: { type: Boolean, default: false },
+  permissionToPhotograhTrue: { type: Boolean, default: false },
+  permissionToPhotograhFalse: { type: Boolean, default: false },
+  authorizationAccessFundsTrue: { type: Boolean, default: false },
+  authorizationAccessPersonalTrue: { type: Boolean, default: false },
+  authorizationAccessFundsFalse: { type: Boolean, default: false },
+  authorizationAccessPersonalFalse: { type: Boolean, default: false },
+  patientUnableToSign: { type: Boolean, default: false },
+  mentalStatusOriented: { type: Boolean, default: false },
+  mentalStatusDisoriented: { type: Boolean, default: false },
+  mentalStatusDementia: { type: Boolean, default: false },
+  mentalStatusForgetful: { type: Boolean, default: false },
+  mentalStatusAlert: { type: Boolean, default: false },
+  mentalStatusAlzheimer: { type: Boolean, default: false },
+  emergencyLevel1: { type: Boolean, default: false },
+  emergencyLevel2: { type: Boolean, default: false },
+  emergencyLevel3: { type: Boolean, default: false },
+  emergencyLevel4: { type: Boolean, default: false },
+  stayHome: { type: Boolean, default: false },
+
   // Evacuation Options
   patientEvacuateToRelative: { type: Boolean, default: false },
   patientEvacuateToFriend: { type: Boolean, default: false },
@@ -277,9 +364,12 @@ const formDataSchema = new mongoose.Schema({
   // Signature Fields (Base64 strings)
   rnSignature: String,
   patientSignature: String,
+  patientRightsPatientSignature: String,
   representativeSignature: String,
   agencyRepresentativeSignature: String,
+  patientOrAuthorizedAgentSignature: String,
   clinicianSignature: String,
+  clientSignature: String,
   witnessSignature: String,
   vaccineNurseSignature: String,
   vaccinePatientSignature: String,
@@ -293,7 +383,6 @@ const formDataSchema = new mongoose.Schema({
   advanceDirectivesPatientSignature: String,
   advanceDirectivesWitnessSignature: String,
   nonCoveragePatientSignature: String,
-  patientRightsPatientSignature: String,
   medicationProfileClinicianSignature: String,
 
   // Medication Data
