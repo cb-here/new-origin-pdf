@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +27,7 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import { generatePDF } from "@/lib/api";
+import { generatePDF, updateDocument, saveProgress as saveProgressAPI } from "@/lib/api";
 
 const steps = [
   {
@@ -78,10 +79,14 @@ const steps = [
 ];
 
 export const SOCForm: React.FC = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
+    null
+  );
   const [formData, setFormData] = useState<FormData>({
-    // Initialize all fields with empty values
     nurse: "",
     physicalTherapist: "",
     occupationalTherapist: "",
@@ -161,8 +166,9 @@ export const SOCForm: React.FC = () => {
     mdtOasisDate: "",
     medications: [],
   });
+  console.log("🚀 ~ SOCForm ~ formData:", formData);
 
-  const updateFormData = (field: keyof FormData, value: any) => {
+  const updateFormData = (field: keyof FormData, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -188,9 +194,27 @@ export const SOCForm: React.FC = () => {
     setCurrentStep(stepId);
   };
 
-  // Auto-fill patient names across forms and sync client/patient fields
+  // Load editing data if available
   useEffect(() => {
-    // Sync patient name to all related fields
+    const editingFormData = localStorage.getItem("editingFormData");
+    const editingDocId = localStorage.getItem("editingDocumentId");
+
+    if (editingFormData && editingDocId) {
+      try {
+        const parsedData = JSON.parse(editingFormData);
+        setFormData(parsedData);
+        setIsEditMode(true);
+        setEditingDocumentId(editingDocId);
+
+        localStorage.removeItem("editingFormData");
+        localStorage.removeItem("editingDocumentId");
+      } catch (error) {
+        console.error("❌ Error loading editing data:", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (formData.patientName) {
       if (!formData.billOfRightsPatientName) {
         updateFormData("billOfRightsPatientName", formData.patientName);
@@ -203,12 +227,10 @@ export const SOCForm: React.FC = () => {
       }
     }
 
-    // Sync client name back to patient name if client name is filled first
     if (formData.clientName && !formData.patientName) {
       updateFormData("patientName", formData.clientName);
     }
 
-    // Sync MR numbers
     if (formData.mrNumber && !formData.emergencyMrNumber) {
       updateFormData("emergencyMrNumber", formData.mrNumber);
     }
@@ -216,7 +238,6 @@ export const SOCForm: React.FC = () => {
       updateFormData("mrNumber", formData.emergencyMrNumber);
     }
 
-    // Sync allergies fields
     if (formData.allergies && !formData.emergencyAllergies) {
       updateFormData("emergencyAllergies", formData.allergies);
     }
@@ -240,7 +261,6 @@ export const SOCForm: React.FC = () => {
 
   const exportJSON = () => {
     const jsonData = JSON.stringify(formData, null, 2);
-    console.log("SOC Form Data (JSON):", jsonData);
 
     const blob = new Blob([jsonData], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -253,27 +273,105 @@ export const SOCForm: React.FC = () => {
     toast.success("Form data exported as JSON!");
   };
 
-  const saveProgress = () => {
-    localStorage.setItem("socFormData", JSON.stringify(formData));
-    localStorage.setItem(
-      "socFormProgress",
-      JSON.stringify({ currentStep, completedSteps })
-    );
-    toast.success("Progress saved!");
+  const saveProgress = async () => {
+    try {
+      toast.loading("Saving progress...", { id: "save-progress" });
+
+      const result = await saveProgressAPI(formData, isEditMode, editingDocumentId);
+
+      // Also save to localStorage as backup
+      localStorage.setItem("socFormData", JSON.stringify(formData));
+      localStorage.setItem(
+        "socFormProgress",
+        JSON.stringify({ currentStep, completedSteps })
+      );
+
+      // If this was a new document, update our state to reflect we're now editing
+      if (!isEditMode && result.data?.documentId) {
+        setIsEditMode(true);
+        setEditingDocumentId(result.data.documentId);
+      }
+
+      toast.success("Progress saved successfully!", { id: "save-progress" });
+      console.log("✅ Progress saved:", result);
+    } catch (error) {
+      console.error("❌ Failed to save progress:", error);
+
+      // Fallback to localStorage only
+      localStorage.setItem("socFormData", JSON.stringify(formData));
+      localStorage.setItem(
+        "socFormProgress",
+        JSON.stringify({ currentStep, completedSteps })
+      );
+
+      toast.error("Failed to save to server, saved locally instead", { id: "save-progress" });
+    }
+  };
+
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSavingProgress, setIsSavingProgress] = useState(false);
+
+  const handleUpdateDocument = async () => {
+    if (!editingDocumentId) {
+      toast.error("No document ID found for updating");
+      return;
+    }
+
+    try {
+      setIsGeneratingPDF(true);
+      toast.loading("Updating document...", { id: "document-update" });
+
+      await updateDocument(
+        editingDocumentId,
+        formData,
+        formData.patientName || formData.clientName
+      );
+
+      toast.success("Document updated successfully!", {
+        id: "document-update",
+      });
+    } catch (error) {
+      console.error("Document Update Error:", error);
+      toast.error("Failed to update document. Please try again.", {
+        id: "document-update",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   const handleGeneratePDF = async () => {
     try {
-      toast.loading("Generating PDF...", { id: "pdf-generation" });
+      setIsGeneratingPDF(true);
 
-      await generatePDF(formData, formData.patientName || formData.clientName);
-
-      toast.success("PDF generated successfully!", { id: "pdf-generation" });
+      if (isEditMode && editingDocumentId) {
+        // If in edit mode, update the existing document
+        toast.loading("Updating document...", { id: "pdf-generation" });
+        await updateDocument(
+          editingDocumentId,
+          formData,
+          formData.patientName || formData.clientName
+        );
+        toast.success("Document updated successfully!", {
+          id: "pdf-generation",
+        });
+      } else {
+        // If not in edit mode, create new document and generate PDF
+        toast.loading("Generating PDF...", { id: "pdf-generation" });
+        await generatePDF(
+          formData,
+          formData.patientName || formData.clientName
+        );
+        toast.success("PDF generated successfully!", { id: "pdf-generation" });
+      }
     } catch (error) {
-      console.error("PDF Generation Error:", error);
-      toast.error("Failed to generate PDF. Please try again.", {
+      console.error("Error:", error);
+      const action = isEditMode ? "update document" : "generate PDF";
+      toast.error(`Failed to ${action}. Please try again.`, {
         id: "pdf-generation",
       });
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -291,12 +389,19 @@ export const SOCForm: React.FC = () => {
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
-                SOC Packet Form
+                {isEditMode ? "Edit SOC Document" : "SOC Packet Form"}
               </span>
             </h1>
             <p className="text-muted-foreground">
-              Complete your Start of Care documentation with digital signatures
+              {isEditMode
+                ? "Edit your existing Start of Care documentation"
+                : "Complete your Start of Care documentation with digital signatures"}
             </p>
+            {isEditMode && (
+              <p className="text-sm text-blue-600 font-medium mt-2">
+                📝 Editing Document ID: {editingDocumentId}
+              </p>
+            )}
           </div>
 
           {/* Step 1: Client Information */}
@@ -459,28 +564,13 @@ export const SOCForm: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="certificationStart">
-                  Certification Period - Start
-                </Label>
+                <Label htmlFor="certificationStart">Certification Date</Label>
                 <Input
                   id="certificationStart"
                   type="date"
                   value={formData.certificationStart}
                   onChange={(e) =>
                     updateFormData("certificationStart", e.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="certificationEnd">
-                  Certification Period - End
-                </Label>
-                <Input
-                  id="certificationEnd"
-                  type="date"
-                  value={formData.certificationEnd}
-                  onChange={(e) =>
-                    updateFormData("certificationEnd", e.target.value)
                   }
                 />
               </div>
@@ -831,6 +921,7 @@ export const SOCForm: React.FC = () => {
                 onSignatureChange={(signature) =>
                   updateFormData("agencyRepSignature", signature)
                 }
+                existingSignature={formData.agencyRepSignature}
                 required
               />
 
@@ -1291,7 +1382,6 @@ export const SOCForm: React.FC = () => {
                   }
                 />
               </div>
-
             </div>
           </FormStep>
 
@@ -1347,7 +1437,7 @@ export const SOCForm: React.FC = () => {
                   <Label htmlFor="mdtPhysician">Physician</Label>
                   <Input
                     id="mdtPhysician"
-                    value={formData.mdtPhysician}
+                    value={formData.physician}
                     onChange={(e) =>
                       updateFormData("mdtPhysician", e.target.value)
                     }
@@ -1473,10 +1563,6 @@ export const SOCForm: React.FC = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export JSON
               </Button>
-              <Button variant="destructive" onClick={handleGeneratePDF}>
-                <FileText className="h-4 w-4 mr-2" />
-                Generate PDF
-              </Button>
             </div>
 
             <div className="flex gap-2">
@@ -1488,14 +1574,26 @@ export const SOCForm: React.FC = () => {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Previous
               </Button>
-              <Button
-                variant={currentStep === steps.length ? "default" : "default"}
-                onClick={nextStep}
-                // disabled={currentStep === steps.length}
-              >
-                {currentStep === steps.length ? "Complete Form" : "Next"}
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
+              <div onClick={nextStep}>
+                {currentStep === steps.length ? (
+                  <Button
+                    variant="wizard"
+                    onClick={handleGeneratePDF}
+                    disabled={isGeneratingPDF}
+                    className="flex items-center gap-2"
+                  >
+                    {isGeneratingPDF && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                    {isEditMode ? "Update Document" : "Generate PDF"}
+                  </Button>
+                ) : (
+                  <Button variant="default" onClick={nextStep}>
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>

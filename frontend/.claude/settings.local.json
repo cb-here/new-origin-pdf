@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/official/new-origin-pdf-filler/backend/controllers/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

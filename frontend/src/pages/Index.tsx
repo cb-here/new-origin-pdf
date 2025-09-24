@@ -6,7 +6,7 @@ import { FileText } from 'lucide-react';
 const Index = () => {
   return (
     <div className="relative">
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-44 z-10">
         <Link to="/documents">
           <Button variant="outline">
             <FileText className="w-4 h-4 mr-2" />

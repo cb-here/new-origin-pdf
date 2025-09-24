@@ -75,7 +75,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
                   </div>
                 </div>
                 <div className={cn(
-                  "text-xs font-medium px-2 py-1 rounded-full",
+                  "text-xs font-medium px-2 py-1 rounded-full flex-shrink-0",
                   isCurrent 
                     ? "bg-primary text-primary-foreground" 
                     : "bg-muted text-muted-foreground"

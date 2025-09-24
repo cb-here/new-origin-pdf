@@ -1,77 +1,179 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Download, Edit, ArrowLeft } from 'lucide-react';
-
-// Dummy data for demonstration
-const documentData = [
-  {
-    id: 1,
-    patientName: 'John Smith',
-    socDate: '2024-01-15',
-    mrn: 'MRN001234',
-    clinicianName: 'Dr. Sarah Johnson',
-    status: 'Signed',
-    createdAt: '2024-01-15 10:30 AM',
-    completedAt: '2024-01-15 11:45 AM'
-  },
-  {
-    id: 2,
-    patientName: 'Mary Davis',
-    socDate: '2024-01-14',
-    mrn: 'MRN005678',
-    clinicianName: 'Dr. Michael Brown',
-    status: 'Pending',
-    createdAt: '2024-01-14 2:15 PM',
-    completedAt: null
-  },
-  {
-    id: 3,
-    patientName: 'Robert Wilson',
-    socDate: '2024-01-13',
-    mrn: 'MRN009876',
-    clinicianName: 'Dr. Emily Chen',
-    status: 'Signed',
-    createdAt: '2024-01-13 9:00 AM',
-    completedAt: '2024-01-13 10:20 AM'
-  },
-  {
-    id: 4,
-    patientName: 'Lisa Anderson',
-    socDate: '2024-01-12',
-    mrn: 'MRN543210',
-    clinicianName: 'Dr. James Miller',
-    status: 'Draft',
-    createdAt: '2024-01-12 3:45 PM',
-    completedAt: null
-  }
-];
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Download, Edit, ArrowLeft } from "lucide-react";
+import { fetchUsers, fetchDocumentForEdit } from "@/lib/fetchApis";
+import { generatePDF } from "@/lib/api";
+import TableFooter from "@/components/common/TableFooter";
+import { formatDate } from "@/lib/utils/formatDate";
+import { toast } from "sonner";
 
 const Documents = () => {
-  const handleDownload = (id: number, patientName: string) => {
-    console.log(`Downloading document for ${patientName} (ID: ${id})`);
-    // Dummy download action
+  const navigate = useNavigate();
+  const [documentData, setDocumentData] = useState({
+    totalRecords: 0,
+    Users: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [documentParams, setDocumentParams] = useState({
+    search: "",
+    page: 1,
+    limit: 10,
+  });
+
+  const initialFetch = useRef(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const getUsers = async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) => {
+    setLoading(true);
+    try {
+      const res = await fetchUsers({
+        page: params?.page ?? documentParams.page,
+        limit: params?.limit ?? documentParams.limit,
+        search: params?.search ?? documentParams.search,
+      });
+      setDocumentData(res);
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEdit = (id: number, patientName: string) => {
-    console.log(`Editing document for ${patientName} (ID: ${id})`);
-    // Dummy edit action
+  useEffect(() => {
+    if (!initialFetch.current) {
+      getUsers();
+      initialFetch.current = true;
+    }
+  }, []);
+
+  const totalPages = Math.ceil(
+    documentData.totalRecords / documentParams.limit
+  );
+  const startIndex = (documentParams.page - 1) * documentParams.limit + 1;
+  const endIndex = Math.min(
+    startIndex - 1 + documentParams.limit,
+    documentData.totalRecords
+  );
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDocumentParams((prev) => ({ ...prev, search: value, page: 1 }));
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    searchTimeout.current = setTimeout(() => {
+      getUsers({ search: value, page: 1 });
+    }, 500);
+  };
+
+  const handlePageChange = (page: number) => {
+    setDocumentParams((prev) => ({ ...prev, page }));
+    getUsers({ page });
+  };
+
+  const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const limit = parseInt(e.target.value, 10);
+    setDocumentParams((prev) => ({ ...prev, page: 1, limit }));
+    getUsers({ page: 1, limit });
+  };
+
+  const handleDownload = async (doc) => {
+    console.log("🚀 ~ handleDownload ~ doc:", doc);
+    setDownloadingId(doc._id);
+
+    try {
+      toast.loading(`Downloading document for ${doc.patientName}...`, {
+        id: `download-${doc._id}`
+      });
+
+      await generatePDF(doc, doc.patientName || "Patient", true);
+
+      toast.success(`Document downloaded successfully!`, {
+        id: `download-${doc._id}`
+      });
+    } catch (error) {
+      console.error(`Failed to download document:`, error);
+      toast.error(`Failed to download document. Please try again.`, {
+        id: `download-${doc._id}`
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleEdit = async (doc) => {
+    console.log(`Editing document for ${doc.patientName} (ID: ${doc._id})`);
+    setEditingId(doc._id);
+
+    try {
+      toast.loading(`Loading document for editing...`, {
+        id: `edit-${doc._id}`
+      });
+
+      const editData = await fetchDocumentForEdit(doc._id);
+
+      localStorage.setItem('editingFormData', JSON.stringify(editData));
+      localStorage.setItem('editingDocumentId', doc._id);
+
+      toast.success(`Document loaded! Redirecting to editor...`, {
+        id: `edit-${doc._id}`
+      });
+
+      // Small delay to show success message before navigation
+      setTimeout(() => {
+        navigate('/', { state: { editMode: true } });
+      }, 800);
+
+    } catch (error) {
+      console.error('Failed to fetch document for editing:', error);
+      toast.error(`Failed to load document for editing. Please try again.`, {
+        id: `edit-${doc._id}`
+      });
+    } finally {
+      setEditingId(null);
+    }
   };
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'Signed':
-        return 'default';
-      case 'Pending':
-        return 'secondary';
-      case 'Draft':
-        return 'outline';
+      case "Signed":
+        return "default";
+      case "Pending":
+        return "secondary";
+      case "Draft":
+        return "outline";
       default:
-        return 'outline';
+        return "outline";
     }
+  };
+
+  const renderSkeleton = () => {
+    return Array.from({ length: documentParams.limit }).map((_, idx) => (
+      <TableRow key={idx}>
+        {Array.from({ length: 8 }).map((__, i) => (
+          <TableCell key={i}>
+            <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+          </TableCell>
+        ))}
+      </TableRow>
+    ));
   };
 
   return (
@@ -84,14 +186,23 @@ const Documents = () => {
               Back to Form
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold text-foreground">Document Management</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Document Management
+          </h1>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>SOC Documents</CardTitle>
-          </CardHeader>
           <CardContent>
+            <div className="flex items-center justify-between mb-3 p-3">
+            <h1 className="text-2xl font-semibold leading-none tracking-tight">SOC Documents</h1>
+              <input
+                type="text"
+                placeholder="Search..."
+                className="ml-auto border p-2 rounded w-[400px]"
+                value={documentParams?.search}
+                onChange={handleSearch}
+              />
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -100,53 +211,90 @@ const Documents = () => {
                     <TableHead>SOC Date</TableHead>
                     <TableHead>MRN</TableHead>
                     <TableHead>Clinician</TableHead>
-                    <TableHead>Status</TableHead>
+                    {/* <TableHead>Status</TableHead> */}
                     <TableHead>Created</TableHead>
                     <TableHead>Completed</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {documentData.map((doc) => (
-                    <TableRow key={doc.id}>
-                      <TableCell className="font-medium">{doc.patientName}</TableCell>
-                      <TableCell>{doc.socDate}</TableCell>
-                      <TableCell>{doc.mrn}</TableCell>
-                      <TableCell>{doc.clinicianName}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(doc.status)}>
-                          {doc.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{doc.createdAt}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {doc.completedAt || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(doc.id, doc.patientName)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownload(doc.id, doc.patientName)}
-                            disabled={doc.status === 'Draft'}
-                          >
-                            <Download className="w-4 h-4 mr-1" />
-                            Download
-                          </Button>
-                        </div>
+                  {loading ? (
+                    renderSkeleton()
+                  ) : documentData?.Users?.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="text-center py-4 text-xl"
+                      >
+                        No records found.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    documentData?.Users?.map((doc) => (
+                      <TableRow key={doc.id}>
+                        <TableCell className="font-medium">
+                          {doc?.patientName || "-"}
+                        </TableCell>
+                        <TableCell>{formatDate(doc?.socDate) || "-"}</TableCell>
+                        <TableCell>{doc?.mrn || "-"}</TableCell>
+                        <TableCell>{doc?.clinicianPrintName || "-"}</TableCell>
+                        {/* <TableCell>
+                          <Badge variant={getStatusVariant(doc.status)}>
+                            {doc?.status}
+                          </Badge>
+                        </TableCell> */}
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(doc?.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {doc?.completedAt || "N/A"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(doc)}
+                              disabled={editingId === doc._id}
+                            >
+                              {editingId === doc._id ? (
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
+                              ) : (
+                                <Edit className="w-4 h-4 mr-1" />
+                              )}
+                              {editingId === doc._id ? "Loading..." : "Edit"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownload(doc)}
+                              disabled={doc.status === "Draft" || downloadingId === doc._id}
+                            >
+                              {downloadingId === doc._id ? (
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
+                              ) : (
+                                <Download className="w-4 h-4 mr-1" />
+                              )}
+                              {downloadingId === doc._id ? "Downloading..." : "Download"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
+
+              <TableFooter
+                rowsPerPage={documentParams?.limit}
+                handleRowsPerPageChange={handleRowsPerPageChange}
+                currentPage={documentParams?.page}
+                totalPages={totalPages}
+                handlePageChange={handlePageChange}
+                totalEntries={documentData?.totalRecords}
+                startIndex={startIndex}
+                endIndex={endIndex}
+              />
             </div>
           </CardContent>
         </Card>

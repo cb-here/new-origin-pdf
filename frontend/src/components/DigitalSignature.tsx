@@ -12,6 +12,7 @@ interface DigitalSignatureProps {
   required?: boolean;
   prefillName?: string;
   allowTypedSignature?: boolean;
+  existingSignature?: string; // Add prop for existing signature data
 }
 
 export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
@@ -19,13 +20,44 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
   title = "Digital Signature",
   required = false,
   prefillName = "",
-  allowTypedSignature = true
+  allowTypedSignature = true,
+  existingSignature = ""
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [signatureMode, setSignatureMode] = useState<'draw' | 'type'>('type'); // Default to type mode
   const [typedSignature, setTypedSignature] = useState(prefillName);
+
+  // Load existing signature if provided
+  useEffect(() => {
+    if (existingSignature && existingSignature.startsWith('data:image/')) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const image = new Image();
+      image.onload = () => {
+        // Clear canvas first
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the existing signature
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        setHasSignature(true);
+        onSignatureChange(existingSignature);
+
+        console.log('Existing signature loaded:', {
+          title: title,
+          signatureData: existingSignature,
+          loaded: true
+        });
+      };
+      image.src = existingSignature;
+    }
+  }, [existingSignature, title, onSignatureChange]);
 
   // Update typed signature when prefillName changes
   useEffect(() => {

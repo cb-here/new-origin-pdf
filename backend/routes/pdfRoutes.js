@@ -1,16 +1,19 @@
 import express from 'express';
 import {
   generatePDF,
-  getFormData,
-  getFormDataById
+  getDocumentForEdit,
+  updateDocument,
+  saveProgress
 } from '../controllers/pdfController.js';
 
 const router = express.Router();
 
 router.post('/generate', generatePDF);
 
-router.get('/forms', getFormData);
+router.get('/:id/edit', getDocumentForEdit);
 
-router.get('/forms/:id', getFormDataById);
+router.put('/:id/update', updateDocument);
+
+router.post('/save-progress', saveProgress);
 
 export default router;
