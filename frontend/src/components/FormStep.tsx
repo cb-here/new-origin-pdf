@@ -25,7 +25,7 @@ export const FormStep: React.FC<FormStepProps> = ({
         <CardHeader className="pb-6">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <CardTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-primary ">
                 {title}
               </CardTitle>
               <p className="text-muted-foreground mt-2">{description}</p>

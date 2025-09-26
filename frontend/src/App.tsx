@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Documents from "./pages/Documents";
+import NOMNC from "./pages/NOMNC";
+import FormSelection from "./pages/FormSelection";
+import PatientConsent from "./pages/PatientConsent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -17,9 +20,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<FormSelection />} />
+          <Route path="/esoc" element={<Index />} />
           <Route path="/documents" element={<Documents />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/nomnc" element={<NOMNC />} />
+          <Route path="/patient-consent" element={<PatientConsent />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

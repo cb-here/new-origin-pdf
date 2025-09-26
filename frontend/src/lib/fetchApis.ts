@@ -18,3 +18,28 @@ export const fetchDocumentForEdit = async (id: string) => {
   return response.data?.Response;
 };
     
+
+export const fetchNOMNCForms = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) => {
+  const response = await axios.get(`${API_BASE_URL}/nomnc-forms`, {
+    params: { page: 1, limit: 10, ...params },
+  });
+  return response.data?.Response;
+};
+
+    
+export const fetchConsents = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) => {
+  const response = await axios.get(`${API_BASE_URL}/consent-forms`, {
+    params: { page: 1, limit: 10, ...params },
+  });
+  return response.data?.Response;
+};
+
+    

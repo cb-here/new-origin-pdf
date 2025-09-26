@@ -23,9 +23,19 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
   onStepClick
 }) => {
   return (
-    <div className="w-80 bg-card border-r border-border p-6 h-screen overflow-y-auto sticky top-0">
-      <div className="mb-8">
-        <h2 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+    <div className="w-80 bg-card border-r border-border flex flex-col h-screen">
+      {/* Header - Fixed */}
+      <div className="p-6 border-b border-border flex-shrink-0">
+        <h2 
+          className="text-xl font-bold mb-2"
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            color: 'transparent'
+          }}
+        >
           Table of Contents
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -33,7 +43,8 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
         </p>
       </div>
       
-      <nav className="space-y-2">
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 overflow-y-auto p-6 space-y-2 min-h-0">
         {steps.map((step) => {
           const isCompleted = completedSteps.includes(step.id);
           const isCurrent = currentStep === step.id;
@@ -75,7 +86,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
                   </div>
                 </div>
                 <div className={cn(
-                  "text-xs font-medium px-2 py-1 rounded-full flex-shrink-0",
+                  "text-xs font-medium px-2 py-1 rounded-full",
                   isCurrent 
                     ? "bg-primary text-primary-foreground" 
                     : "bg-muted text-muted-foreground"
@@ -88,17 +99,23 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
         })}
       </nav>
       
-      <div className="mt-8 p-4 bg-muted/30 rounded-lg">
-        <div className="text-sm font-medium mb-2">Progress</div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-muted rounded-full h-2">
-            <div 
-              className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(completedSteps.length / steps.length) * 100}%` }}
-            />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {completedSteps.length}/{steps.length}
+      {/* Progress - Fixed at bottom */}
+      <div className="p-6 border-t border-border flex-shrink-0">
+        <div className="p-4 bg-muted/30 rounded-lg">
+          <div className="text-sm font-medium mb-2">Progress</div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-muted rounded-full h-2">
+              <div 
+                className="h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${(completedSteps.length / steps.length) * 100}%`,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                }}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {completedSteps.length}/{steps.length}
+            </div>
           </div>
         </div>
       </div>

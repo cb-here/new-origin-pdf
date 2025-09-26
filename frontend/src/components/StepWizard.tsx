@@ -15,10 +15,14 @@ interface StepWizardProps {
 }
 
 export const StepWizard: React.FC<StepWizardProps> = ({
-  steps,
+  steps = [],
   currentStep,
   completedSteps
 }) => {
+  if (!steps || steps.length === 0) {
+    return null;
+  }
+
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-8">

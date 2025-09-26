@@ -66,7 +66,7 @@ const Documents = () => {
   const totalPages = Math.ceil(
     documentData.totalRecords / documentParams.limit
   );
-  const startIndex = (documentParams.page - 1) * documentParams.limit + 1;
+  const startIndex = (documentParams.page - 1) * documentParams.limit;
   const endIndex = Math.min(
     startIndex - 1 + documentParams.limit,
     documentData.totalRecords
@@ -95,23 +95,22 @@ const Documents = () => {
   };
 
   const handleDownload = async (doc) => {
-    console.log("🚀 ~ handleDownload ~ doc:", doc);
     setDownloadingId(doc._id);
 
     try {
       toast.loading(`Downloading document for ${doc.patientName}...`, {
-        id: `download-${doc._id}`
+        id: `download-${doc._id}`,
       });
 
       await generatePDF(doc, doc.patientName || "Patient", true);
 
       toast.success(`Document downloaded successfully!`, {
-        id: `download-${doc._id}`
+        id: `download-${doc._id}`,
       });
     } catch (error) {
       console.error(`Failed to download document:`, error);
       toast.error(`Failed to download document. Please try again.`, {
-        id: `download-${doc._id}`
+        id: `download-${doc._id}`,
       });
     } finally {
       setDownloadingId(null);
@@ -124,43 +123,29 @@ const Documents = () => {
 
     try {
       toast.loading(`Loading document for editing...`, {
-        id: `edit-${doc._id}`
+        id: `edit-${doc._id}`,
       });
 
       const editData = await fetchDocumentForEdit(doc._id);
 
-      localStorage.setItem('editingFormData', JSON.stringify(editData));
-      localStorage.setItem('editingDocumentId', doc._id);
+      localStorage.setItem("editingFormData", JSON.stringify(editData));
+      localStorage.setItem("editingDocumentId", doc._id);
 
       toast.success(`Document loaded! Redirecting to editor...`, {
-        id: `edit-${doc._id}`
+        id: `edit-${doc._id}`,
       });
 
       // Small delay to show success message before navigation
       setTimeout(() => {
-        navigate('/', { state: { editMode: true } });
+        navigate("/", { state: { editMode: true } });
       }, 800);
-
     } catch (error) {
-      console.error('Failed to fetch document for editing:', error);
+      console.error("Failed to fetch document for editing:", error);
       toast.error(`Failed to load document for editing. Please try again.`, {
-        id: `edit-${doc._id}`
+        id: `edit-${doc._id}`,
       });
     } finally {
       setEditingId(null);
-    }
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "Signed":
-        return "default";
-      case "Pending":
-        return "secondary";
-      case "Draft":
-        return "outline";
-      default:
-        return "outline";
     }
   };
 
@@ -194,7 +179,9 @@ const Documents = () => {
         <Card>
           <CardContent>
             <div className="flex items-center justify-between mb-3 p-3">
-            <h1 className="text-2xl font-semibold leading-none tracking-tight">SOC Documents</h1>
+              <h1 className="text-2xl font-semibold leading-none tracking-tight">
+                SOC Documents
+              </h1>
               <input
                 type="text"
                 placeholder="Search..."
@@ -238,11 +225,6 @@ const Documents = () => {
                         <TableCell>{formatDate(doc?.socDate) || "-"}</TableCell>
                         <TableCell>{doc?.mrn || "-"}</TableCell>
                         <TableCell>{doc?.clinicianPrintName || "-"}</TableCell>
-                        {/* <TableCell>
-                          <Badge variant={getStatusVariant(doc.status)}>
-                            {doc?.status}
-                          </Badge>
-                        </TableCell> */}
                         <TableCell className="text-muted-foreground">
                           {formatDate(doc?.createdAt)}
                         </TableCell>
@@ -268,14 +250,19 @@ const Documents = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDownload(doc)}
-                              disabled={doc.status === "Draft" || downloadingId === doc._id}
+                              disabled={
+                                doc.status === "Draft" ||
+                                downloadingId === doc._id
+                              }
                             >
                               {downloadingId === doc._id ? (
                                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
                               ) : (
                                 <Download className="w-4 h-4 mr-1" />
                               )}
-                              {downloadingId === doc._id ? "Downloading..." : "Download"}
+                              {downloadingId === doc._id
+                                ? "Downloading..."
+                                : "Download"}
                             </Button>
                           </div>
                         </TableCell>

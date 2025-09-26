@@ -15,8 +15,6 @@ import {
 } from "@/components/ui/select";
 import { SidebarNavigation } from "./SidebarNavigation";
 import { FormStep } from "./FormStep";
-import { DigitalSignature } from "./DigitalSignature";
-import { FormData } from "@/types/form";
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,7 +25,13 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import { generatePDF, updateDocument, saveProgress as saveProgressAPI } from "@/lib/api";
+import {
+  generatePDF,
+  updateDocument,
+  saveProgress as saveProgressAPI,
+} from "@/lib/api";
+import { FormData } from "@/types/form";
+import { DigitalSignature } from "./DigitalSignature";
 
 const steps = [
   {
@@ -166,7 +170,6 @@ export const SOCForm: React.FC = () => {
     mdtOasisDate: "",
     medications: [],
   });
-  console.log("🚀 ~ SOCForm ~ formData:", formData);
 
   const updateFormData = (field: keyof FormData, value) => {
     setFormData((prev) => ({
@@ -277,7 +280,11 @@ export const SOCForm: React.FC = () => {
     try {
       toast.loading("Saving progress...", { id: "save-progress" });
 
-      const result = await saveProgressAPI(formData, isEditMode, editingDocumentId);
+      const result = await saveProgressAPI(
+        formData,
+        isEditMode,
+        editingDocumentId
+      );
 
       // Also save to localStorage as backup
       localStorage.setItem("socFormData", JSON.stringify(formData));
@@ -304,7 +311,9 @@ export const SOCForm: React.FC = () => {
         JSON.stringify({ currentStep, completedSteps })
       );
 
-      toast.error("Failed to save to server, saved locally instead", { id: "save-progress" });
+      toast.error("Failed to save to server, saved locally instead", {
+        id: "save-progress",
+      });
     }
   };
 
@@ -880,7 +889,6 @@ export const SOCForm: React.FC = () => {
                 title="Patient/Authorized Agent Signature"
                 onSignatureChange={(signature) => {
                   updateFormData("patientSignature", signature);
-                  // Also update client signature since they're the same person
                   if (!formData.clientSignature) {
                     updateFormData("clientSignature", signature);
                   }
@@ -921,7 +929,6 @@ export const SOCForm: React.FC = () => {
                 onSignatureChange={(signature) =>
                   updateFormData("agencyRepSignature", signature)
                 }
-                existingSignature={formData.agencyRepSignature}
                 required
               />
 

@@ -193,26 +193,28 @@ export function transformFormDataToBackend(formData) {
   };
 }
 
-export async function generatePDF(formData, patientName: string = "Unknown", skipSave: boolean = false) {
+export async function generatePDF(
+  formData,
+  patientName: string = "Unknown",
+  skipSave: boolean = false
+) {
   try {
     // Only transform data when saving (creating new document)
     // When downloading, use the data as-is since it's already in the correct format
-    const payload = skipSave ?
-      { patientData: formData, medicationRows: [] } :
-      transformFormDataToBackend(formData);
+    const payload = skipSave
+      ? { patientData: formData, medicationRows: [] }
+      : transformFormDataToBackend(formData);
 
-    const apiUrl = `${API_BASE_URL}/pdf/generate${skipSave ? '?skipSave=true' : ''}`;
+    const apiUrl = `${API_BASE_URL}/pdf/generate${
+      skipSave ? "?skipSave=true" : ""
+    }`;
 
-    const response = await axios.post(
-      apiUrl,
-      payload,
-      {
-        responseType: "blob",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await axios.post(apiUrl, payload, {
+      responseType: "blob",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     const url = window.URL.createObjectURL(
       new Blob([response.data], { type: "application/pdf" })
@@ -241,7 +243,11 @@ export async function generatePDF(formData, patientName: string = "Unknown", ski
   }
 }
 
-export async function updateDocument(documentId: string, formData, patientName: string = "Unknown") {
+export async function updateDocument(
+  documentId: string,
+  formData,
+  patientName: string = "Unknown"
+) {
   try {
     const transformedPayload = transformFormDataToBackend(formData);
 
@@ -274,14 +280,18 @@ export async function updateDocument(documentId: string, formData, patientName: 
   }
 }
 
-export async function saveProgress(formData, isEditMode: boolean = false, editingDocumentId: string | null = null) {
+export async function saveProgress(
+  formData,
+  isEditMode: boolean = false,
+  editingDocumentId: string | null = null
+) {
   try {
     const response = await axios.post(
       `${API_BASE_URL}/pdf/save-progress`,
       {
         formData,
         isEditMode,
-        editingDocumentId
+        editingDocumentId,
       },
       {
         headers: {
@@ -306,5 +316,389 @@ export async function saveProgress(formData, isEditMode: boolean = false, editin
     }
 
     throw new Error("Failed to save progress");
+  }
+}
+
+export async function generateNOMNCPDF(
+  formData,
+  patientName: string = "Unknown",
+  skipSave: boolean = false
+) {
+  try {
+    const payload = formData;
+
+    const apiUrl = `${API_BASE_URL}/pdf/generate-nomnc${
+      skipSave ? "?skipSave=true" : ""
+    }`;
+
+    const response = await axios.post(apiUrl, payload, {
+      responseType: "blob",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: "application/pdf" })
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `NOMNC-${patientName || "Patient"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    return response.data;
+  } catch (error) {
+    console.error("PDF Generation Error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid patient data provided");
+      } else if (error.response?.status === 500) {
+        throw new Error("PDF generation failed on server");
+      }
+    }
+
+    throw new Error("Failed to generate PDF");
+  }
+}
+
+const convertTextToSignature = (text: string): string => {
+  if (!text) return "";
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return "";
+
+  // Higher resolution for crisp text
+  const logicalWidth = 300;
+  const logicalHeight = 80;
+
+  // Use higher DPI scaling
+  const dpr = Math.max(window.devicePixelRatio || 1, 2);
+  canvas.width = logicalWidth * dpr;
+  canvas.height = logicalHeight * dpr;
+
+  ctx.scale(dpr, dpr);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Signature styling
+  ctx.fillStyle = "#1a1a1a"; // Slightly softer black
+  ctx.font =
+    "italic 20px 'Brush Script MT', 'Dancing Script', 'Lucida Handwriting', cursive";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Optional: Add slight stroke for definition
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+  ctx.lineWidth = 0.5;
+
+  const x = logicalWidth / 2;
+  const y = logicalHeight / 2;
+
+  // Draw text with stroke (optional)
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+
+  return canvas.toDataURL("image/png");
+};
+
+export async function generateBulkNOMNCPDF(
+  bulkData: any[],
+  skipSave: boolean = false
+) {
+  try {
+    const processedBulkData = bulkData.map((item) => ({
+      ...item,
+      sig_patient_or_rep:
+        item.sig_patient_or_rep &&
+        !item.sig_patient_or_rep.startsWith("data:image/")
+          ? convertTextToSignature(item.sig_patient_or_rep)
+          : item.sig_patient_or_rep,
+    }));
+
+    const payload = { bulkData: processedBulkData };
+
+    const apiUrl = `${API_BASE_URL}/pdf/generate-bulk-nomnc${
+      skipSave ? "?skipSave=true" : ""
+    }`;
+
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const result = response.data;
+
+    if (result.success && result.pdfs && result.pdfs.length > 0) {
+      // Create a zip file with all PDFs
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      result.pdfs.forEach((pdfInfo: any) => {
+        const pdfBlob = new Blob(
+          [Uint8Array.from(atob(pdfInfo.pdfData), (c) => c.charCodeAt(0))],
+          { type: "application/pdf" }
+        );
+
+        zip.file(`${pdfInfo.fileName}`, pdfBlob);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      const url = window.URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `NOMNC-Bulk-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Bulk PDF Generation Error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid bulk data provided");
+      } else if (error.response?.status === 500) {
+        throw new Error("Bulk PDF generation failed on server");
+      }
+    }
+
+    throw new Error("Failed to generate bulk PDFs");
+  }
+}
+
+export async function updateNOMNCForm(
+  documentId: string,
+  formData: any,
+  patientName: string = "Unknown"
+) {
+  try {
+    const payload = { patientData: formData };
+
+    const response = await axios.put(
+      `${API_BASE_URL}/${documentId}/update-nomnc`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("✅ NOMNC form updated successfully:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ NOMNC form update error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid form data provided");
+      } else if (error.response?.status === 404) {
+        throw new Error("NOMNC form not found");
+      } else if (error.response?.status === 500) {
+        throw new Error("NOMNC form update failed on server");
+      }
+    }
+
+    throw new Error("Failed to update NOMNC form");
+  }
+}
+
+export async function downloadNomncPDF(
+  documentId: string,
+  formData: any,
+  patientName: string = "Unknown"
+) {
+  try {
+    const payload = { patientData: formData };
+
+    const apiUrl = `${API_BASE_URL}/pdf/generate-nomnc?skipSave=true`;
+
+    const response = await axios.post(apiUrl, payload, {
+      responseType: "blob",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: "application/pdf" })
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `NOMNC-${patientName || "Patient"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    return response.data;
+  } catch (error) {
+    console.error("PDF Download Error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid patient data provided");
+      } else if (error.response?.status === 500) {
+        throw new Error("PDF generation failed on server");
+      }
+    }
+
+    throw new Error("Failed to download PDF");
+  }
+}
+
+export async function generatePatientConsentPDF(
+  formData: any,
+  patientName: string = "Unknown",
+  skipSave: boolean = false
+) {
+  try {
+    const payload = { patientData: formData };
+
+    const apiUrl = `${API_BASE_URL}/pdf/generate-patient-consent${
+      skipSave ? "?skipSave=true" : ""
+    }`;
+
+    const response = await axios.post(apiUrl, payload, {
+      responseType: "blob",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: "application/pdf" })
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PatientConsent-${patientName || "Patient"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    return response.data;
+  } catch (error) {
+    console.error("Patient Consent PDF Generation Error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid patient data provided");
+      } else if (error.response?.status === 500) {
+        throw new Error("PDF generation failed on server");
+      }
+    }
+
+    throw new Error("Failed to generate Patient Consent PDF");
+  }
+}
+
+export async function updatePatientConsentForm(
+  documentId: string,
+  formData: any,
+  patientName: string = "Unknown"
+) {
+  try {
+    const payload = { patientData: formData };
+
+    const response = await axios.put(
+      `${API_BASE_URL}/pdf/${documentId}/update`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("✅ Patient Consent form updated successfully:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Patient Consent form update error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid form data provided");
+      } else if (error.response?.status === 404) {
+        throw new Error("Patient Consent form not found");
+      } else if (error.response?.status === 500) {
+        throw new Error("Patient Consent form update failed on server");
+      }
+    }
+
+    throw new Error("Failed to update Patient Consent form");
+  }
+}
+
+export async function generateBulkPatientConsentPDF(
+  bulkData: any[],
+  skipSave: boolean = false
+) {
+  try {
+    const payload = { bulkData };
+
+    const apiUrl = `${API_BASE_URL}/pdf/generate-bulk-patient-consent${
+      skipSave ? "?skipSave=true" : ""
+    }`;
+
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const result = response.data;
+
+    if (result.success && result.pdfs && result.pdfs.length > 0) {
+      // Create a zip file with all PDFs
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      result.pdfs.forEach((pdfInfo: any) => {
+        const pdfBlob = new Blob(
+          [Uint8Array.from(atob(pdfInfo.pdfData), (c) => c.charCodeAt(0))],
+          { type: "application/pdf" }
+        );
+
+        zip.file(`${pdfInfo.fileName}`, pdfBlob);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      const url = window.URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PatientConsent-Bulk-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Bulk Patient Consent PDF Generation Error:", error);
+
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        throw new Error("Invalid bulk data provided");
+      } else if (error.response?.status === 500) {
+        throw new Error("Bulk PDF generation failed on server");
+      }
+    }
+
+    throw new Error("Failed to generate bulk Patient Consent PDFs");
   }
 }
