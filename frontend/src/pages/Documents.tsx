@@ -1,24 +1,147 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Download, Edit, ArrowLeft } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Download, Edit, FileText, RefreshCw } from "lucide-react";
 import { fetchUsers, fetchDocumentForEdit } from "@/lib/fetchApis";
 import { generatePDF } from "@/lib/api";
 import TableFooter from "@/components/common/TableFooter";
 import { formatDate } from "@/lib/utils/formatDate";
 import { toast } from "sonner";
+import Search from "@/components/common/SearchInput";
+import CommonTable from "@/components/common/ReusableTable";
+import { FiDownload, FiEdit } from "react-icons/fi";
 
 const Documents = () => {
+  const headers = [
+    {
+      label: "Patient Name",
+      render: (item) =>
+        item?.patientName ? (
+          <span>{item.patientName}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
+    },
+    {
+      label: "SOC Date",
+      render: (item) =>
+        item?.socDate ? (
+          <span>{formatDate(item.socDate)}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
+    },
+    {
+      label: "MRN",
+      render: (item) =>
+        item?.mrn ? (
+          <span>{item.mrn}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
+    },
+    {
+      label: "Clinician",
+      render: (item) =>
+        item?.clinicianPrintName ? (
+          <span>{item.clinicianPrintName}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
+    },
+    {
+      label: "Created",
+      render: (item) =>
+        item?.createdAt ? (
+          <span className="text-muted-foreground">
+            {formatDate(item.createdAt)}
+          </span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
+    },
+  ];
+
+  const actions = [
+    {
+      label: "Edit",
+      render: (item) => (
+        <span
+          className={`cursor-pointer text-blue-500 hover:text-blue-700 transition-colors ${
+            editingId === item._id ? "opacity-50" : ""
+          }`}
+          onClick={() => handleEdit(item)}
+          title="Edit"
+        >
+          {editingId === item._id ? (
+            <svg
+              className="animate-spin h-5 w-5 text-blue-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          ) : (
+            <FiEdit size={20} />
+          )}
+        </span>
+      ),
+    },
+    {
+      label: "Download",
+      render: (item) => (
+        <span
+          className={`cursor-pointer text-blue-500 hover:text-blue-700 transition-colors ${
+            downloadingId === item._id || item.status === "Draft"
+              ? "opacity-50"
+              : ""
+          }`}
+          onClick={() => item.status !== "Draft" && handleDownload(item)}
+          title="Download"
+        >
+          {downloadingId === item._id ? (
+            <svg
+              className="animate-spin h-5 w-5 text-blue-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          ) : (
+            <FiDownload size={20} />
+          )}
+        </span>
+      ),
+    },
+  ];
+
   const navigate = useNavigate();
   const [documentData, setDocumentData] = useState({
     totalRecords: 0,
@@ -68,7 +191,7 @@ const Documents = () => {
   );
   const startIndex = (documentParams.page - 1) * documentParams.limit;
   const endIndex = Math.min(
-    startIndex - 1 + documentParams.limit,
+    startIndex + documentParams.limit,
     documentData.totalRecords
   );
 
@@ -135,9 +258,8 @@ const Documents = () => {
         id: `edit-${doc._id}`,
       });
 
-      // Small delay to show success message before navigation
       setTimeout(() => {
-        navigate("/", { state: { editMode: true } });
+        navigate("/esoc", { state: { editMode: true } });
       }, 800);
     } catch (error) {
       console.error("Failed to fetch document for editing:", error);
@@ -149,129 +271,54 @@ const Documents = () => {
     }
   };
 
-  const renderSkeleton = () => {
-    return Array.from({ length: documentParams.limit }).map((_, idx) => (
-      <TableRow key={idx}>
-        {Array.from({ length: 8 }).map((__, i) => (
-          <TableCell key={i}>
-            <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-          </TableCell>
-        ))}
-      </TableRow>
-    ));
-  };
-
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background rounded-lg">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Link to="/">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Form
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold text-foreground">
-            Document Management
-          </h1>
-        </div>
-
         <Card>
           <CardContent>
-            <div className="flex items-center justify-between mb-3 p-3">
-              <h1 className="text-2xl font-semibold leading-none tracking-tight">
-                SOC Documents
-              </h1>
-              <input
-                type="text"
-                placeholder="Search..."
-                className="ml-auto border p-2 rounded w-[400px]"
-                value={documentParams?.search}
-                onChange={handleSearch}
-              />
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Patient Name</TableHead>
-                    <TableHead>SOC Date</TableHead>
-                    <TableHead>MRN</TableHead>
-                    <TableHead>Clinician</TableHead>
-                    {/* <TableHead>Status</TableHead> */}
-                    <TableHead>Created</TableHead>
-                    <TableHead>Completed</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    renderSkeleton()
-                  ) : documentData?.Users?.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-4 text-xl"
-                      >
-                        No records found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    documentData?.Users?.map((doc) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="font-medium">
-                          {doc?.patientName || "-"}
-                        </TableCell>
-                        <TableCell>{formatDate(doc?.socDate) || "-"}</TableCell>
-                        <TableCell>{doc?.mrn || "-"}</TableCell>
-                        <TableCell>{doc?.clinicianPrintName || "-"}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(doc?.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {doc?.completedAt || "N/A"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(doc)}
-                              disabled={editingId === doc._id}
-                            >
-                              {editingId === doc._id ? (
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
-                              ) : (
-                                <Edit className="w-4 h-4 mr-1" />
-                              )}
-                              {editingId === doc._id ? "Loading..." : "Edit"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownload(doc)}
-                              disabled={
-                                doc.status === "Draft" ||
-                                downloadingId === doc._id
-                              }
-                            >
-                              {downloadingId === doc._id ? (
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
-                              ) : (
-                                <Download className="w-4 h-4 mr-1" />
-                              )}
-                              {downloadingId === doc._id
-                                ? "Downloading..."
-                                : "Download"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <div className="flex items-center justify-between mb-3 p-3 flex-col sm:flex-row">
+              <div className="flex items-start gap-2">
+                <FileText className="w-6 sm:w-7 h-6 sm:h-7 mt-2 text-blue-500" />
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-blue-500">
+                    SOC Dashboard
+                  </h1>
+                  <p className="text-sm text-gray-400">
+                    View and manage submitted SOC forms
+                  </p>
+                </div>
+              </div>
 
+              <div className="flex items-center gap-2 mt-3 mr-2 flex-col sm:flex-row">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => getUsers()}
+                  disabled={loading}
+                  className="flex items-center gap-2 h-11 w-full s:w-full auto"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </Button>
+                <Search
+                  className="w-auto sm:w-[336px]"
+                  value={documentParams?.search}
+                  onChange={handleSearch}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end mb-3 mr-4"></div>
+
+            <div className="overflow-x-auto">
+              <CommonTable
+                headers={headers}
+                data={documentData?.Users || []}
+                actions={actions}
+                loading={loading}
+                withCheckbox={false}
+              />
               <TableFooter
                 rowsPerPage={documentParams?.limit}
                 handleRowsPerPageChange={handleRowsPerPageChange}

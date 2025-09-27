@@ -21,9 +21,10 @@ import { SidebarNavigation } from "./SidebarNavigation";
 import { FormStep } from "./FormStep";
 import { DigitalSignature } from "./DigitalSignature";
 import PatientConsentCSVUpload from "./PatientConsentCSVUpload";
-import { Loader2, Send, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Send, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { generatePatientConsentPDF, updatePatientConsentForm } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
 interface DisciplineFrequency {
   discipline: string;
@@ -68,14 +69,14 @@ const months = [
   { value: "12", label: "December" },
 ];
 
-
 const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
   mode = "single",
   editingForm,
   isEditMode = false,
   onCancelEdit,
-  onFormUpdated
+  onFormUpdated,
 }) => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -96,30 +97,67 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
     startMonth: "",
     endMonth: "",
   });
+  console.log("🚀 ~ PatientConsentForm ~ formData:", formData);
 
   const updateFormData = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Initialize form data when editing
+  const resetFormData = () => {
+    setFormData({
+      patientName: "",
+      mrn: "",
+      soc: "",
+      certificationStart: "",
+      certificationEnd: "",
+      disciplineFrequencies: Array(6)
+        .fill(null)
+        .map(() => ({ discipline: "", newFrequency: "" })),
+      patientSignature: "",
+      patientSignatureDate: "",
+      agencyRepSignature: "",
+      agencyRepDate: "",
+      startMonth: "",
+      endMonth: "",
+    });
+    setCurrentStep(1);
+    setCompletedSteps([]);
+  };
+
   useEffect(() => {
     if (isEditMode && editingForm) {
+      // convert labels to values if needed
+      const startMonthValue =
+        months.find((m) => m.label === editingForm.startMonth)?.value ||
+        editingForm.startMonth ||
+        "";
+
+      const endMonthValue =
+        months.find((m) => m.label === editingForm.endMonth)?.value ||
+        editingForm.endMonth ||
+        "";
+
       setFormData({
         patientName: editingForm.patientName || "",
         mrn: editingForm.mrn || "",
         soc: editingForm.soc || "",
         certificationStart: editingForm.certificationStart || "",
         certificationEnd: editingForm.certificationEnd || "",
-        disciplineFrequencies: editingForm.disciplineFrequencies || Array(6)
-          .fill(null)
-          .map(() => ({ discipline: "", newFrequency: "" })),
+        disciplineFrequencies:
+          editingForm.disciplineFrequencies ||
+          Array(6)
+            .fill(null)
+            .map(() => ({ discipline: "", newFrequency: "" })),
         patientSignature: editingForm.patientSignature || "",
         patientSignatureDate: editingForm.patientSignatureDate || "",
         agencyRepSignature: editingForm.agencyRepSignature || "",
         agencyRepDate: editingForm.agencyRepDate || "",
-        startMonth: editingForm.startMonth || "",
-        endMonth: editingForm.endMonth || "",
+        startMonth: startMonthValue,
+        endMonth: endMonthValue,
       });
+    } else if (!isEditMode) {
+      // Reset form when exiting edit mode
+      resetFormData();
     }
   }, [isEditMode, editingForm]);
 
@@ -173,7 +211,6 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
     }));
   };
 
-
   const getConsecutiveMonths = (startMonth: string) => {
     if (!startMonth) return [];
 
@@ -192,9 +229,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
       "certificationStart",
       "certificationEnd",
       "patientSignature",
-      "patientSignatureDate",
       "agencyRepSignature",
-      "agencyRepDate"
     ];
     const missingFields = requiredFields.filter((field) => !formData[field]);
 
@@ -208,8 +243,19 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
     setIsGenerating(true);
     try {
       if (isEditMode && editingForm?._id) {
-        await updatePatientConsentForm(editingForm._id, formData, formData.patientName);
+        // Update the form
+        await updatePatientConsentForm(
+          editingForm._id,
+          formData,
+          formData.patientName
+        );
         toast.success("Patient Consent form updated successfully!");
+
+        // Download the PDF (skip saving since we just updated)
+        await generatePatientConsentPDF(formData, formData.patientName, true);
+        toast.success("PDF downloaded successfully!");
+
+        // Redirect to dashboard tab and refresh data
         onFormUpdated?.();
       } else {
         await generatePatientConsentPDF(formData, formData.patientName, false);
@@ -235,20 +281,8 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
   // If we're in bulk mode, show the CSV upload component
   if (mode === "bulk") {
     return (
-      <div className="min-h-screen bg-gradient-subtle p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="bg-gradient-primary bg-clip-text text-transparent">
-                Bulk Patient Consent Forms
-              </span>
-            </h1>
-            <p className="text-muted-foreground">
-              Upload CSV data to generate multiple Patient Consent PDFs at once.
-            </p>
-          </div>
-          <PatientConsentCSVUpload onDataParsed={handleBulkDataParsed} />
-        </div>
+      <div className="space-y-6 w-full">
+        <PatientConsentCSVUpload onDataParsed={handleBulkDataParsed} />
       </div>
     );
   }
@@ -262,38 +296,9 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
         onStepClick={goToStep}
       />
 
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1  overflow-y-auto">
         <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="bg-gradient-primary bg-clip-text text-transparent">
-                Patient Consent Form {isEditMode ? "- Edit Mode" : ""}
-              </span>
-            </h1>
-            <p className="text-muted-foreground">
-              Client Service Agreement Form -{" "}
-              {isEditMode
-                ? `Editing form for ${editingForm?.patientName || 'Patient'}`
-                : "Single Form Creation"
-              }
-            </p>
-            {isEditMode && (
-              <Button
-                variant="outline"
-                onClick={onCancelEdit}
-                className="mt-2"
-              >
-                Cancel Edit
-              </Button>
-            )}
-          </div>
-
-          <FormStep
-            title={steps[currentStep - 1].title}
-            description={steps[currentStep - 1].description}
-            isActive={true}
-            pageNumber={`Page ${currentStep} of ${steps.length}`}
-          >
+          <FormStep isActive={true}>
             {currentStep === 1 && (
               <div className="space-y-6">
                 <Card>
@@ -306,9 +311,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="patientName">
-                          Patient Name *
-                        </Label>
+                        <Label htmlFor="patientName">Patient Name *</Label>
                         <Input
                           id="patientName"
                           value={formData.patientName}
@@ -320,7 +323,9 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="mrn">MRN (Medical Record Number) *</Label>
+                        <Label htmlFor="mrn">
+                          MRN (Medical Record Number) *
+                        </Label>
                         <Input
                           id="mrn"
                           value={formData.mrn}
@@ -335,9 +340,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="soc">
-                          SOC (Start of Care) *
-                        </Label>
+                        <Label htmlFor="soc">SOC (Start of Care) *</Label>
                         <Input
                           id="soc"
                           type="date"
@@ -428,11 +431,16 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                             <SelectValue placeholder="Select end month" />
                           </SelectTrigger>
                           <SelectContent>
-                            {getConsecutiveMonths(formData.startMonth).map((month) => (
-                              <SelectItem key={month.value} value={month.value}>
-                                {month.label}
-                              </SelectItem>
-                            ))}
+                            {getConsecutiveMonths(formData.startMonth).map(
+                              (month) => (
+                                <SelectItem
+                                  key={month.value}
+                                  value={month.value}
+                                >
+                                  {month.label}
+                                </SelectItem>
+                              )
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -484,54 +492,22 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>
-                          Patient Signature *
-                        </Label>
+                        <Label>Patient Signature *</Label>
                         <DigitalSignature
                           onSignatureChange={(signature) =>
                             updateFormData("patientSignature", signature)
                           }
+                          prefillSignature={formData.patientSignature}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="patientSignatureDate">
-                          Patient Signature Date *
-                        </Label>
-                        <Input
-                          id="patientSignatureDate"
-                          type="date"
-                          value={formData.patientSignatureDate}
-                          onChange={(e) =>
-                            updateFormData("patientSignatureDate", e.target.value)
-                          }
-                          required
-                        />
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>
-                          Agency Representative Signature *
-                        </Label>
+                        <Label>Agency Representative Signature *</Label>
                         <DigitalSignature
                           onSignatureChange={(signature) =>
                             updateFormData("agencyRepSignature", signature)
                           }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="agencyRepDate">
-                          Agency Representative Date *
-                        </Label>
-                        <Input
-                          id="agencyRepDate"
-                          type="date"
-                          value={formData.agencyRepDate}
-                          onChange={(e) =>
-                            updateFormData("agencyRepDate", e.target.value)
-                          }
-                          required
+                          prefillSignature={formData.agencyRepSignature}
                         />
                       </div>
                     </div>
@@ -562,7 +538,10 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                 {isEditMode && (
                   <Button
                     variant="outline"
-                    onClick={onCancelEdit}
+                    onClick={() => {
+                      resetFormData();
+                      onCancelEdit?.();
+                    }}
                     disabled={isGenerating}
                   >
                     Cancel Edit
@@ -578,7 +557,9 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      {isEditMode ? "Update Consent Form" : "Generate Consent PDF"}
+                      {isEditMode
+                        ? "Update Consent Form"
+                        : "Generate Consent PDF"}
                     </>
                   )}
                 </Button>
@@ -591,4 +572,4 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
   );
 };
 
-export default PatientConsentForm
+export default PatientConsentForm;

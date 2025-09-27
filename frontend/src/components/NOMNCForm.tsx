@@ -24,7 +24,13 @@ import { SERVICE_TYPE_OPTIONS } from "@/types/nomnc";
 import { ChevronLeft, ChevronRight, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { DigitalSignature } from "./DigitalSignature";
-import { generateNOMNCPDF, generateBulkNOMNCPDF, updateNOMNCForm } from "@/lib/api";
+import {
+  generateNOMNCPDF,
+  generateBulkNOMNCPDF,
+  updateNOMNCForm,
+  downloadNomncPDF,
+} from "@/lib/api";
+import { Link, useNavigate } from "react-router-dom";
 
 interface NOMNCFormProps {
   mode?: "single" | "bulk";
@@ -39,8 +45,9 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
   editingForm,
   isEditMode = false,
   onCancelEdit,
-  onFormUpdated
+  onFormUpdated,
 }) => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [bulkData, setBulkData] = useState([]);
@@ -58,12 +65,29 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
       .toISOString()
       .split("T")[0],
   });
+  console.log("🚀 ~ NOMNCForm ~ formData:", formData);
 
   const updateFormData = (field, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Initialize form data when editing
+  const resetFormData = () => {
+    setFormData({
+      patientNumber: "",
+      patientName: "",
+      serviceEndDate: "",
+      currentServiceType: "",
+      currentPlanInfo: "",
+      additionalInfo: "",
+      patientOrRepresentitiveSignature: "",
+      patientOrRepresentitiveSignatureDate: new Date()
+        .toISOString()
+        .split("T")[0],
+    });
+    setCurrentStep(1);
+    setCompletedSteps([]);
+  };
+
   useEffect(() => {
     if (isEditMode && editingForm) {
       setFormData({
@@ -73,11 +97,15 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
         currentServiceType: editingForm.currentServiceType || "",
         currentPlanInfo: editingForm.currentPlanInfo || "",
         additionalInfo: editingForm.additionalInfo || "",
-        patientOrRepresentitiveSignature: editingForm.patientOrRepresentitiveSignature || "",
-        patientOrRepresentitiveSignatureDate: editingForm.patientOrRepresentitiveSignatureDate || new Date()
-          .toISOString()
-          .split("T")[0],
+        patientOrRepresentitiveSignature:
+          editingForm.patientOrRepresentitiveSignature || "",
+        patientOrRepresentitiveSignatureDate:
+          editingForm.patientOrRepresentitiveSignatureDate ||
+          new Date().toISOString().split("T")[0],
       });
+    } else if (!isEditMode) {
+      // Reset form when exiting edit mode
+      resetFormData();
     }
   }, [isEditMode, editingForm]);
 
@@ -96,10 +124,14 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
       const result = await generateBulkNOMNCPDF(bulkData, false);
 
       if (result.success) {
-        toast.success(`Successfully generated ${result.processed} PDF(s) out of ${result.total}!`);
+        toast.success(
+          `Successfully generated ${result.processed} PDF(s) out of ${result.total}!`
+        );
 
         if (result.errors && result.errors.length > 0) {
-          toast.error(`${result.errors.length} form(s) had errors during processing`);
+          toast.error(
+            `${result.errors.length} form(s) had errors during processing`
+          );
           console.error("Bulk generation errors:", result.errors);
         }
       } else {
@@ -134,12 +166,17 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
     setIsGenerating(true);
     try {
       if (isEditMode && editingForm?._id) {
-        // Update existing form
+        // Update the form
         await updateNOMNCForm(editingForm._id, formData, formData.patientName);
         toast.success("NOMNC form updated successfully!");
+
+        // Download the PDF (skip saving since we just updated)
+        await downloadNomncPDF(editingForm._id, formData, formData.patientName);
+        toast.success("PDF downloaded successfully!");
+
+        // Redirect to dashboard tab and refresh data
         onFormUpdated?.();
       } else {
-        // Create new form
         const payload = { patientData: formData };
         await generateNOMNCPDF(payload, formData.patientName, false);
         toast.success("NOMNC PDF generated and downloaded successfully!");
@@ -190,19 +227,19 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex">
-      <SidebarNavigation
-        steps={steps}
-        currentStep={currentStep}
-        completedSteps={completedSteps}
-        onStepClick={goToStep}
-      />
+      {mode == "single" && (
+        <SidebarNavigation
+          steps={steps}
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepClick={goToStep}
+        />
+      )}
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto">
-          
-
+        <div className="">
           {mode === "bulk" ? (
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               <Card>
                 <CardHeader>
                   <CardTitle>Bulk NOMNC Form Creation</CardTitle>
@@ -221,14 +258,15 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                         disabled={isBulkGenerating}
                       >
                         {isBulkGenerating ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </>
                         ) : (
                           <Send className="w-4 h-4" />
                         )}
                         {isBulkGenerating
                           ? `Generating ${bulkData.length} PDFs...`
-                          : `Generate ${bulkData.length} NOMNC PDFs`
-                        }
+                          : `Generate ${bulkData.length} NOMNC PDFs`}
                       </Button>
                     </div>
                   )}
@@ -236,12 +274,7 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
               </Card>
             </div>
           ) : (
-            <FormStep
-              title={steps[currentStep - 1].title}
-              description={steps[currentStep - 1].description}
-              isActive={true}
-              pageNumber={`Page ${currentStep} of ${steps.length}`}
-            >
+            <FormStep isActive={true}>
               {currentStep === 1 && (
                 <div className="space-y-6">
                   <Card>
@@ -260,13 +293,13 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                             Patient Number *
                           </Label>
                           <Input
+                            type="text"
                             id="patient_number"
                             value={formData.patientNumber}
                             onChange={(e) =>
                               updateFormData("patientNumber", e.target.value)
                             }
                             placeholder="Enter patient number"
-                            maxLength={30}
                             required
                           />
                         </div>
@@ -323,7 +356,12 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                         </div>
                       </div>
 
-                      <div className="mt-6 p-4 bg-muted rounded-lg">
+                      <div
+                        style={{
+                          marginTop: "48px",
+                        }}
+                        className="p-4 bg-muted rounded-lg"
+                      >
                         <h4 className="font-semibold mb-2">
                           Information Notice
                         </h4>
@@ -396,6 +434,7 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                                 signature
                               )
                             }
+                            prefillName={formData.patientName}
                           />
                         </div>
                         <div className="space-y-2">
@@ -423,19 +462,22 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
           )}
 
           {mode === "single" && (
-            <div className="flex justify-between mt-8">
+            <div className="flex justify-between mb-6 mt-3">
               <Button
                 variant="outline"
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 ml-7"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Previous
               </Button>
 
               {currentStep < steps.length ? (
-                <Button onClick={nextStep} className="flex items-center gap-2">
+                <Button
+                  onClick={nextStep}
+                  className="flex items-center gap-2 mr-6"
+                >
                   Next
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -444,7 +486,10 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                   {isEditMode && (
                     <Button
                       variant="outline"
-                      onClick={onCancelEdit}
+                      onClick={() => {
+                        resetFormData();
+                        onCancelEdit?.();
+                      }}
                       disabled={isGenerating}
                     >
                       Cancel Edit
@@ -452,15 +497,19 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                   )}
                   <Button
                     onClick={handleSubmit}
-                    className="flex items-center gap-2 bg-primary hover:bg-primary/90 min-w-[200px]"
+                    className="flex items-center gap-2 bg-primary hover:bg-primary/90 min-w-[200px] mr-7"
                     disabled={isGenerating}
                   >
                     {isGenerating ? (
-                      <Loader2 className="animate-spin" />
+                      <>
+                        <Loader2 className="animate-spin" /> Generating...
+                      </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        {isEditMode ? "Update NOMNC Form" : "Generate NOMNC PDF"}
+                        {isEditMode
+                          ? "Update NOMNC Form"
+                          : "Generate NOMNC PDF"}
                       </>
                     )}
                   </Button>

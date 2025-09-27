@@ -374,8 +374,8 @@ const convertTextToSignature = (text: string): string => {
   if (!ctx) return "";
 
   // Higher resolution for crisp text
-  const logicalWidth = 300;
-  const logicalHeight = 80;
+  const logicalWidth = 350;
+  const logicalHeight = 200;
 
   // Use higher DPI scaling
   const dpr = Math.max(window.devicePixelRatio || 1, 2);
@@ -390,7 +390,7 @@ const convertTextToSignature = (text: string): string => {
   // Signature styling
   ctx.fillStyle = "#1a1a1a"; // Slightly softer black
   ctx.font =
-    "italic 20px 'Brush Script MT', 'Dancing Script', 'Lucida Handwriting', cursive";
+    "italic 40px 'Brush Script MT', 'Dancing Script', 'Lucida Handwriting', cursive";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -614,7 +614,7 @@ export async function updatePatientConsentForm(
     const payload = { patientData: formData };
 
     const response = await axios.put(
-      `${API_BASE_URL}/pdf/${documentId}/update`,
+      `${API_BASE_URL}/${documentId}/update-patient-consent`,
       payload,
       {
         headers: {
@@ -647,7 +647,21 @@ export async function generateBulkPatientConsentPDF(
   skipSave: boolean = false
 ) {
   try {
-    const payload = { bulkData };
+    const processedBulkData = bulkData.map((item) => ({
+      ...item,
+      patientSignature:
+        item.patientSignature &&
+        !item.patientSignature.startsWith("data:image/")
+          ? convertTextToSignature(item.patientSignature)
+          : item.patientSignature,
+      agencyRepSignature:
+        item.agencyRepSignature &&
+        !item.agencyRepSignature.startsWith("data:image/")
+          ? convertTextToSignature(item.agencyRepSignature)
+          : item.agencyRepSignature,
+    }));
+
+    const payload = { bulkData: processedBulkData };
 
     const apiUrl = `${API_BASE_URL}/pdf/generate-bulk-patient-consent${
       skipSave ? "?skipSave=true" : ""

@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { FiEdit, FiDownload } from "react-icons/fi";
 import { NOMNCForm } from "@/components/NOMNCForm";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileText, Home, Users, File } from "lucide-react";
+import { FileText, Users, File, RefreshCw } from "lucide-react";
 import TableFooter from "@/components/common/TableFooter";
 import { fetchNOMNCForms } from "@/lib/fetchApis";
 import { downloadNomncPDF } from "@/lib/api";
@@ -18,24 +17,46 @@ import { toast } from "sonner";
 import CommonTable from "@/components/common/ReusableTable";
 import Search from "@/components/common/SearchInput";
 import { cleanParams } from "@/utils/cleanParams";
+import { formatDate } from "@/utils/formatDate";
 
 const NOMNC = () => {
   const headers = [
     {
       label: "MRN Number",
-      render: (item) => <span>{item?.patientNumber}</span>,
+      render: (item) =>
+        item?.patientNumber ? (
+          <span>{item.patientNumber}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
+
     {
       label: "Patient Name",
-      render: (item) => <span>{item?.patientName}</span>,
+      render: (item) =>
+        item?.patientName ? (
+          <span>{item.patientName}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
     {
       label: "Effective Date",
-      render: (item) => <span>{item?.serviceEndDate}</span>,
+      render: (item) =>
+        item?.serviceEndDate ? (
+          <span>{formatDate(item?.serviceEndDate)}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
     {
       label: "Service Type",
-      render: (item) => <span>{item?.currentServiceType}</span>,
+      render: (item) =>
+        item?.currentServiceType ? (
+          <span>{item?.currentServiceType}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
   ];
 
@@ -138,83 +159,63 @@ const NOMNC = () => {
   const handleCancelEdit = () => {
     setEditingForm(null);
     setIsEditMode(false);
+    setMode("dashboard");
   };
 
   const actions = [
     {
       label: "Edit",
       render: (item) => (
-        <Button
-          size="sm"
-          variant="outline"
+        <span
+          className="cursor-pointer text-blue-500 hover:text-blue-700 transition-colors"
           onClick={() => handleEditForm(item)}
+          title="Edit"
         >
-          Edit
-        </Button>
+          <FiEdit size={20} />
+        </span>
       ),
     },
     {
       label: "View",
       render: (item) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleDownload(item)}
-          disabled={downloadLoading[item._id]}
-          className="relative"
+        <span
+          className={`relative cursor-pointer text-blue-500 hover:text-blue-700 transition-colors ${
+            downloadLoading[item._id] ? "opacity-50" : ""
+          }`}
+          onClick={() => !downloadLoading[item._id] && handleDownload(item)}
+          title="Download"
         >
           {downloadLoading[item._id] ? (
-            <span className="flex items-center">
-              <svg
-                className="animate-spin h-5 w-5 mr-2 text-blue-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Downloading...
-            </span>
+            <svg
+              className="animate-spin h-5 w-5 text-blue-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
           ) : (
-            "Download"
+            <FiDownload size={20} />
           )}
-        </Button>
+        </span>
       ),
     },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="absolute top-4 left-4 z-10">
-        <Link to="/">
-          <Button variant="outline">
-            <Home className="w-4 h-4 mr-2" />
-            Form Selection
-          </Button>
-        </Link>
-      </div>
-
-      <div className="absolute top-4 right-4 z-10">
-        <Link to="/documents">
-          <Button variant="outline">
-            <FileText className="w-4 h-4 mr-2" />
-            View Documents
-          </Button>
-        </Link>
-      </div>
-
       <div className="container mx-auto px-4 pt-16">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -229,25 +230,30 @@ const NOMNC = () => {
         <div className="max-w-6xl mx-auto">
           <Tabs
             value={mode}
-            onValueChange={(value) =>
-              setMode(value as "single" | "bulk" | "dashboard")
-            }
+            onValueChange={(value) => {
+              // Clear editing state when switching to single form tab
+              if (value === "single" && isEditMode) {
+                setEditingForm(null);
+                setIsEditMode(false);
+              }
+              setMode(value as "single" | "bulk" | "dashboard");
+            }}
             className="mb-8"
           >
-            <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
+            <TabsList className="grid grid-cols-3 w-full mx-auto sm:max-w-lg sm:overflow-x-auto">
               <TabsTrigger value="single" className="flex items-center gap-2">
-                <File className="w-4 h-4" />
+                <File className="w-4 h-4 shrink-0" />
                 Single Form
               </TabsTrigger>
               <TabsTrigger value="bulk" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
+                <Users className="w-4 h-4  shrink-0" />
                 Bulk Creation
               </TabsTrigger>
               <TabsTrigger
                 value="dashboard"
                 className="flex items-center gap-2"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="w-4 h-4  shrink-0" />
                 Dashboard
               </TabsTrigger>
             </TabsList>
@@ -273,6 +279,7 @@ const NOMNC = () => {
                 onFormUpdated={() => {
                   handleCancelEdit();
                   getForms();
+                  setMode("dashboard");
                 }}
               />
             </TabsContent>
@@ -295,22 +302,38 @@ const NOMNC = () => {
 
             <TabsContent value="dashboard" className="mt-8">
               <Card>
-                <CardHeader className="flex">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    NOMNC Dashboard
-                  </CardTitle>
-                  <CardDescription>
-                    View and manage submitted NOMNC forms
-                  </CardDescription>
-                </CardHeader>
-                <div className="flex items-center justify-end mb-3 mr-4">
-                  <Search
-                    className="w-auto sm:w-[336px]"
-                    value={nomncParams?.search}
-                    onChange={handleSearch}
-                  />
+                <div className="flex items-center gap-2 justify-between ml-3 mt-3 flex-col sm:flex-row">
+                  <div className="flex items-start gap-2">
+                    <FileText className="w-6 sm:w-7 h-6 sm:h-7 mt-2 text-blue-500" />
+                    <div>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-blue-500">
+                        NOMNC Dashboard
+                      </h1>
+                      <p className="text-sm text-gray-400">
+                        View and manage submitted NOMNC forms
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-3 mr-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => getForms()}
+                      disabled={loading}
+                      className="flex items-center gap-2 h-11"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                    <Search
+                      className="w-auto sm:w-[336px]"
+                      value={nomncParams?.search}
+                      onChange={handleSearch}
+                    />
+                  </div>
                 </div>
+                <div className="flex items-center justify-end mb-3 mr-4"></div>
 
                 <CommonTable
                   headers={headers}

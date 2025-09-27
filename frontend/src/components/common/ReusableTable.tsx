@@ -29,7 +29,7 @@ interface CommonTableProps<T> {
   withCheckbox?: boolean;
   loading?: boolean;
   emptyStateMessage?: string;
-  skeletonRows?: number; // number of skeleton rows
+  skeletonRows?: number;
 }
 
 export default function CommonTable<T extends { id: string }>({
@@ -62,29 +62,38 @@ export default function CommonTable<T extends { id: string }>({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <div className="max-w-full overflow-x-auto">
-        <Table>
-          <TableHeader className="px-6 py-3.5 border-t border-gray-100 border-y bg-gray-50 dark:border-white/[0.05] dark:bg-gray-900">
+    <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
+      <div className="max-w-full max-h-[800px] overflow-x-auto overflow-y-auto custom-scrollbar">
+        <Table className="border-collapse">
+          <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
             <TableRow>
               {withCheckbox && (
-                <TableCell className="px-6 py-3 font-medium text-gray-500 text-theme-xs">
+                <TableCell
+                  isHeader
+                  className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-white/[0.03] z-10 min-w-[60px]"
+                >
                   <Checkbox checked={selectAll} onChange={handleSelectAll} />
                 </TableCell>
               )}
               {headers.map((header, idx) => (
                 <TableCell
                   key={idx}
-                  className={`px-6 py-3 font-medium text-gray-500 text-theme-xs ${
-                    header.className ?? ""
-                  }`}
+                  isHeader
+                  className={`px-4 py-3 border whitespace-nowrap border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-white/[0.03] z-10 min-w-[120px] ${header.className ?? ""}`}
                 >
-                  {header.label}
+                  <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400 text-left">
+                    {header.label}
+                  </p>
                 </TableCell>
               ))}
               {actions.length > 0 && (
-                <TableCell className="px-6 py-3 font-medium text-gray-500 text-theme-xs">
-                  Actions
+                <TableCell
+                  isHeader
+                  className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-white/[0.03] z-10 min-w-[120px]"
+                >
+                  <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400 text-center">
+                    Actions
+                  </p>
                 </TableCell>
               )}
             </TableRow>
@@ -95,50 +104,47 @@ export default function CommonTable<T extends { id: string }>({
               Array.from({ length: skeletonRows }).map((_, i) => (
                 <TableRow key={`skeleton-${i}`}>
                   {withCheckbox && (
-                    <TableCell className="px-4 sm:px-6 py-3.5 border-b border-gray-200 dark:border-white/[0.1]">
+                    <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] min-w-[60px]">
                       <div className="w-4 h-4 rounded bg-gray-200 animate-pulse"></div>
                     </TableCell>
                   )}
                   {headers.map((_, idx) => (
                     <TableCell
                       key={idx}
-                      className="px-4 sm:px-6 py-3.5 border-b border-gray-200 dark:border-white/[0.1]"
+                      className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] min-w-[120px]"
                     >
                       <div className="h-4 w-24 rounded bg-gray-200 animate-pulse"></div>
                     </TableCell>
                   ))}
                   {actions.length > 0 && (
-                    <TableCell className="px-4 sm:px-6 py-3.5 flex gap-2 border-b border-gray-200 dark:border-white/[0.1]">
-                      <div className="h-6 w-12 rounded bg-gray-200 animate-pulse"></div>
-                      <div className="h-6 w-12 rounded bg-gray-200 animate-pulse"></div>
+                    <TableCell className="px-4 py-4 flex justify-center gap-2 border border-gray-100 dark:border-white/[0.05] min-w-[120px]">
+                      {actions.map((_, idx) => (
+                        <div key={idx} className="h-6 w-20 rounded bg-gray-200 animate-pulse"></div>
+                      ))}
                     </TableCell>
                   )}
                 </TableRow>
               ))}
 
-            
             {!loading && data.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={
-                    headers.length +
-                    (withCheckbox ? 1 : 0) +
-                    (actions.length > 0 ? 1 : 0)
+                    headers.length + (withCheckbox ? 1 : 0) + (actions.length > 0 ? 1 : 0)
                   }
-                  className="px-6 py-6 text-center text-gray-500 text-xl border-b border-gray-200 dark:border-white/[0.1]"
+                  className="px-4 py-4 text-center text-gray-500 text-xl border border-gray-100 dark:border-white/[0.05]"
                 >
                   {emptyStateMessage}
                 </TableCell>
               </TableRow>
             )}
 
-            {/* Actual data */}
             {!loading &&
               data.length > 0 &&
               data.map((row) => (
                 <TableRow key={row.id}>
                   {withCheckbox && (
-                    <TableCell className="px-4 sm:px-6 py-3.5 border-b border-gray-200 dark:border-white/[0.1]">
+                    <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] min-w-[60px]">
                       <Checkbox
                         checked={selectedRows.includes(row.id)}
                         onChange={() => handleRowSelect(row.id)}
@@ -148,15 +154,13 @@ export default function CommonTable<T extends { id: string }>({
                   {headers.map((header, idx) => (
                     <TableCell
                       key={idx}
-                      className={`px-4 sm:px-6 py-3.5 border-b border-gray-200 dark:border-white/[0.1] ${
-                        header.className ?? ""
-                      }`}
+                      className={`px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-gray-400 whitespace-nowrap min-w-[120px] ${header.className ?? ""}`}
                     >
                       {header.render(row)}
                     </TableCell>
                   ))}
                   {actions.length > 0 && (
-                    <TableCell className="px-4 sm:px-6 py-3.5 flex gap-2 border-b border-gray-200 dark:border-white/[0.1]">
+                    <TableCell className="px-4 py-[18px] flex justify-center gap-2 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-white/90 whitespace-nowrap min-w-[120px]">
                       {actions.map((action, idx) =>
                         action.render ? (
                           <span key={idx}>{action.render(row)}</span>
@@ -165,8 +169,7 @@ export default function CommonTable<T extends { id: string }>({
                             key={idx}
                             onClick={() => action.onClick?.(row)}
                             className={`px-2 py-1 rounded text-sm ${
-                              action.className ??
-                              "text-gray-600 hover:text-gray-900"
+                              action.className ?? "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white/90"
                             }`}
                           >
                             {action.label}

@@ -95,7 +95,7 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({ onDataParsed }) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={handleCopyTemplate}
@@ -201,7 +201,7 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({ onDataParsed }) => {
                           <TableCell className="font-mono text-sm whitespace-nowrap">{row.patient_number}</TableCell>
                           <TableCell className='whitespace-nowrap'>{row.patient_name}</TableCell>
                           <TableCell className='whitespace-nowrap'>{row.effective_date}</TableCell>
-                          <TableCell  className='whitespace-nowrap'>{row.current_service_type}</TableCell>
+                          <TableCell  className='whitespace-nowrap max-w-[200px] truncate'>{row.current_service_type}</TableCell>
                           <TableCell className="max-w-32 truncate">{row.plan_contact_info}</TableCell>
                           <TableCell className="max-w-32 truncate">{row.additional_info}</TableCell>
                           <TableCell className='whitespace-nowrap'>{row.sig_patient_or_rep}</TableCell>

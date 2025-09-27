@@ -25,8 +25,8 @@ const fieldCoordinates = {
   page2: {
     currentPlanInfo: { x: 54, y: 178, fontSize: 10 },
     additionalInfo: { x: 54, y: 249, fontSize: 10 },
-    patientOrRepresentitiveSignature: { x: 30, y: 404, isSignature: true },
-    patientOrRepresentitiveSignatureDate: { x: 456, y: 462, fontSize: 12 },
+    patientOrRepresentitiveSignature: { x: 30, y: 410, isSignature: true },
+    patientOrRepresentitiveSignatureDate: { x: 456, y: 460, fontSize: 12 },
   },
 };
 
@@ -185,8 +185,8 @@ async function drawSignature(
   page,
   coord,
   signatureDataUrl,
-  width = 250,
-  height = 100
+  width = 200,
+  height = 80
 ) {
   try {
     const base64 = signatureDataUrl.split(";base64,").pop();

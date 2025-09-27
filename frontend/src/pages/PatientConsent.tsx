@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Home, Users, File } from "lucide-react";
+import { FileText, Home, Users, File, RefreshCw } from "lucide-react";
 import PatientConsentForm from "@/components/PatientConsentForm";
 import PatientConsentCSVUpload from "@/components/PatientConsentCSVUpload";
 import { cleanParams } from "@/utils/cleanParams";
@@ -20,20 +20,36 @@ import Search from "@/components/common/SearchInput";
 import { fetchConsents } from "@/lib/fetchApis";
 import { generatePatientConsentPDF } from "@/lib/api";
 import { formatDate } from "@/utils/formatDate";
+import { FiDownload, FiEdit } from "react-icons/fi";
 
 const PatientConsent = () => {
   const headers = [
     {
       label: "MRN Number",
-      render: (item) => <span>{item?.mrn}</span>,
+      render: (item) =>
+        item?.mrn ? (
+          <span>{item.mrn}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
     {
       label: "Patient Name",
-      render: (item) => <span>{item?.patientName}</span>,
+      render: (item) =>
+        item?.patientName ? (
+          <span>{item.patientName}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
     {
       label: "SOC",
-      render: (item) => <span>{formatDate(item?.soc)}</span>,
+      render: (item) =>
+        item?.soc ? (
+          <span>{formatDate(item.soc)}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
     },
   ];
 
@@ -138,68 +154,56 @@ const PatientConsent = () => {
     {
       label: "Edit",
       render: (item) => (
-        <Button
-          size="sm"
-          variant="outline"
+        <span
+          className="cursor-pointer text-blue-500 hover:text-blue-700 transition-colors"
           onClick={() => handleEditForm(item)}
+          title="Edit"
         >
-          Edit
-        </Button>
+          <FiEdit size={20} />
+        </span>
       ),
     },
     {
       label: "View",
       render: (item) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleDownload(item)}
-          disabled={downloadLoading[item._id]}
-          className="relative"
+        <span
+          className={`relative cursor-pointer text-blue-500 hover:text-blue-700 transition-colors ${
+            downloadLoading[item._id] ? "opacity-50" : ""
+          }`}
+          onClick={() => !downloadLoading[item._id] && handleDownload(item)}
+          title="Download"
         >
           {downloadLoading[item._id] ? (
-            <span className="flex items-center">
-              <svg
-                className="animate-spin h-5 w-5 mr-2 text-blue-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Downloading...
-            </span>
+            <svg
+              className="animate-spin h-5 w-5 text-blue-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
           ) : (
-            "Download"
+            <FiDownload size={20} />
           )}
-        </Button>
+        </span>
       ),
     },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="absolute top-4 left-4 z-10">
-        <Link to="/">
-          <Button variant="outline">
-            <Home className="w-4 h-4 mr-2" />
-            Form Selection
-          </Button>
-        </Link>
-      </div>
-
       <div className="container mx-auto px-4 pt-16">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Patient Consent</h1>
@@ -212,7 +216,14 @@ const PatientConsent = () => {
         <div className="max-w-6xl mx-auto">
           <Tabs
             value={mode}
-            onValueChange={(v) => setMode(v as any)}
+            onValueChange={(v) => {
+              // Clear editing state when switching to single form tab
+              if (v === "single" && isEditMode) {
+                setEditingForm(null);
+                setIsEditMode(false);
+              }
+              setMode(v as any);
+            }}
             className="mb-8"
           >
             <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
@@ -245,7 +256,22 @@ const PatientConsent = () => {
                   </CardDescription>
                 </CardHeader>
               </Card>
-              <PatientConsentForm mode="single" />
+              <PatientConsentForm
+                mode="single"
+                editingForm={editingForm}
+                isEditMode={isEditMode}
+                onCancelEdit={() => {
+                  setEditingForm(null);
+                  setIsEditMode(false);
+                  setMode("dashboard");
+                }}
+                onFormUpdated={() => {
+                  setEditingForm(null);
+                  setIsEditMode(false);
+                  getConsents();
+                  setMode("dashboard");
+                }}
+              />
             </TabsContent>
 
             <TabsContent value="bulk" className="mt-8">
@@ -265,21 +291,39 @@ const PatientConsent = () => {
 
             <TabsContent value="dashboard" className="mt-8">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Patient Consent Dashboard
-                  </CardTitle>
-                  <CardDescription>View recent consents</CardDescription>
-                </CardHeader>
+                <div className="flex items-center gap-2 justify-between ml-3 mt-3 flex-col sm:flex-row">
+                  <div className="flex items-start gap-2">
+                    <FileText className="w-6 sm:w-7 h-6 sm:h-7 mt-2 text-blue-500" />
+                    <div>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-blue-500">
+                        Patient Consent Dashboard
+                      </h1>
+                      <p className="text-sm text-gray-400">
+                        View recent consents
+                      </p>
+                    </div>
+                  </div>
 
-                <div className="flex items-center justify-end mb-3 mr-4">
-                  <Search
-                    className="w-auto sm:w-[336px]"
-                    value={consentParams?.search}
-                    onChange={handleSearch}
-                  />
+                  <div className="flex items-center gap-2 mt-3 mr-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => getConsents()}
+                      disabled={loading}
+                      className="flex items-center gap-2 h-11"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                    <Search
+                      className="w-auto sm:w-[336px]"
+                      value={consentParams?.search}
+                      onChange={handleSearch}
+                    />
+                  </div>
                 </div>
+                <div className="flex items-center justify-end mb-3 mr-4"></div>
+
                 <CommonTable
                   headers={headers}
                   data={documentData?.patientConsents || []}

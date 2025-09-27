@@ -21,16 +21,35 @@ const getPatientConsents = async (req, res) => {
       .find(searchCondition)
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1, _id: -1 });
 
     const [totalRecords, allUsers] = await Promise.all([
       patientConsentUser.countDocuments(searchCondition),
       query,
     ]);
 
+    // Transform database format to frontend format
+    const transformedUsers = allUsers.map(user => {
+      const userObj = user.toObject();
+
+      // Convert individual discipline/frequency fields to array format
+      const disciplineFrequencies = [];
+      for (let i = 1; i <= 6; i++) {
+        disciplineFrequencies.push({
+          discipline: userObj[`discipline${i}`] || '',
+          newFrequency: userObj[`newFrequency${i}`] || ''
+        });
+      }
+
+      // Add the array format to the object
+      userObj.disciplineFrequencies = disciplineFrequencies;
+
+      return userObj;
+    });
+
     const Response = {
       totalRecords,
-      patientConsents: allUsers,
+      patientConsents: transformedUsers,
     };
 
     return successResponse(res, 200, "Forms", Response);

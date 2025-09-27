@@ -49,6 +49,13 @@ const getMonthName = (monthValue) => {
   return monthNames[monthIndex] || "";
 };
 
+const getMonthValue = (monthName) => {
+  if (!monthName) return "";
+  const monthIndex = monthNames.indexOf(monthName);
+  if (monthIndex === -1) return monthName; // If it's already a value, return as-is
+  return String(monthIndex + 1).padStart(2, "0");
+};
+
 export const generatePatientConsentPDF = async (req, res) => {
   try {
     const { patientData } = req.body;
@@ -153,6 +160,7 @@ export const generatePatientConsentPDF = async (req, res) => {
       try {
         const formDataToSave = {
           ...cleanedPatientData,
+          createdAt: new Date(),
           pdfGeneratedAt: new Date(),
         };
 
@@ -321,7 +329,7 @@ export const generateBulkPDF = async (req, res) => {
   }
 };
 
-export const updateDocument = async (req, res) => {
+export const updatePatientConsentDocument = async (req, res) => {
   try {
     const { id } = req.params;
     const { patientData } = req.body;
@@ -333,7 +341,7 @@ export const updateDocument = async (req, res) => {
       });
     }
 
-    const existingDocument = await nmocUser.findById(id);
+    const existingDocument = await patientConsentUser.findById(id);
     if (!existingDocument) {
       return res.status(404).json({
         error: "Document not found",
@@ -343,26 +351,66 @@ export const updateDocument = async (req, res) => {
 
     const cleanedPatientData = {};
 
+    // Basic patient information
     if (getFieldValue(patientData.patientName))
       cleanedPatientData.patientName = patientData.patientName;
-    if (getFieldValue(patientData.patientNumber))
-      cleanedPatientData.patientNumber = patientData.patientNumber;
-    if (getFieldValue(patientData.serviceEndDate))
-      cleanedPatientData.serviceEndDate = formatDate(
-        patientData.serviceEndDate
+    if (getFieldValue(patientData.mrn))
+      cleanedPatientData.mrn = patientData.mrn;
+    if (getFieldValue(patientData.soc))
+      cleanedPatientData.soc = formatDate(patientData.soc);
+    if (getFieldValue(patientData.certificationStart))
+      cleanedPatientData.certificationStart = formatDate(
+        patientData.certificationStart
       );
-    if (getFieldValue(patientData.currentServiceType))
-      cleanedPatientData.currentServiceType = patientData.currentServiceType;
-    if (getFieldValue(patientData.currentPlanInfo))
-      cleanedPatientData.currentPlanInfo = patientData.currentPlanInfo;
-    if (getFieldValue(patientData.additionalInfo))
-      cleanedPatientData.additionalInfo = patientData.additionalInfo;
-    if (getFieldValue(patientData.patientOrRepresentitiveSignatureDate))
-      cleanedPatientData.patientOrRepresentitiveSignatureDate = formatDate(
-        patientData.patientOrRepresentitiveSignatureDate
+    if (getFieldValue(patientData.certificationEnd))
+      cleanedPatientData.certificationEnd = formatDate(
+        patientData.certificationEnd
       );
 
-    const signatureFields = ["patientOrRepresentitiveSignature"];
+    // Month selection
+    if (getFieldValue(patientData.startMonth))
+      cleanedPatientData.startMonth = getMonthName(patientData.startMonth);
+
+    if (getFieldValue(patientData.endMonth))
+      cleanedPatientData.endMonth = getMonthName(patientData.endMonth);
+
+    // Discipline frequencies - Map array to individual database fields
+    if (
+      patientData.disciplineFrequencies &&
+      Array.isArray(patientData.disciplineFrequencies)
+    ) {
+      // Filter out empty entries and map to individual fields
+      const validFrequencies = patientData.disciplineFrequencies.filter(
+        (item) => item.discipline || item.newFrequency
+      );
+
+      // Map to individual database fields (discipline1-6, newFrequency1-6)
+      validFrequencies.forEach((item, index) => {
+        if (index < 6) { // Only save up to 6 disciplines as per schema
+          const fieldNumber = index + 1;
+          if (getFieldValue(item.discipline)) {
+            cleanedPatientData[`discipline${fieldNumber}`] = item.discipline;
+          }
+          if (getFieldValue(item.newFrequency)) {
+            cleanedPatientData[`newFrequency${fieldNumber}`] = item.newFrequency;
+          }
+        }
+      });
+
+      // Also keep the array format for PDF generation
+      cleanedPatientData.disciplineFrequencies = validFrequencies;
+    }
+
+    // Signature dates
+    if (getFieldValue(patientData.patientSignatureDate))
+      cleanedPatientData.patientSignatureDate = formatDate(
+        patientData.patientSignatureDate
+      );
+    if (getFieldValue(patientData.agencyRepDate))
+      cleanedPatientData.agencyRepDate = formatDate(patientData.agencyRepDate);
+
+    // Handle signature fields
+    const signatureFields = ["patientSignature", "agencyRepSignature"];
 
     signatureFields.forEach((field) => {
       if (
@@ -375,10 +423,10 @@ export const updateDocument = async (req, res) => {
     });
 
     // Update the document
-    const updatedDocument = await nmocUser.findByIdAndUpdate(
+    const updatedDocument = await patientConsentUser.findByIdAndUpdate(
       id,
       {
-        ...patientData,
+        ...cleanedPatientData,
         updatedAt: new Date(),
       },
       { new: true, runValidators: true }
@@ -386,13 +434,13 @@ export const updateDocument = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Document updated successfully",
+      message: "Patient Consent document updated successfully",
       data: updatedDocument,
     });
   } catch (error) {
-    console.error("❌ Error updating document:", error);
+    console.error("❌ Error updating Patient Consent document:", error);
     res.status(500).json({
-      error: "Document update failed",
+      error: "Patient Consent document update failed",
       message: error.message,
     });
   }
@@ -524,6 +572,7 @@ export const generateBulkPatientConsentPDF = async (req, res) => {
             try {
               const formDataToSave = {
                 ...cleanedPatientData,
+                createdAt: new Date(),
                 pdfGeneratedAt: new Date(),
                 isBulkGenerated: true,
               };

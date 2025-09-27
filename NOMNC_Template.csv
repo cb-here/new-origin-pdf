@@ -1,0 +1,4 @@
+patient_number,patient_name,effective_date,current_service_type,plan_contact_info,additional_info,sig_patient_or_rep,sig_date
+P12345,John Doe,12/31/2024,Home Health Care,ABC Health Plan - 555-0123 - support@abchealth.com,Patient requires special care instructions for diabetes management,John Doe,12/15/2024
+P12346,Jane Smith,01/15/2025,Physical Therapy,XYZ Insurance - 555-0456 - info@xyzinsurance.com,PT services 3x per week recommended,Jane Smith,12/20/2024
+P12347,Bob Johnson,02/28/2025,Skilled Nursing,Medicare Plan A - 555-0789 - medicare@plan.com,24/7 nursing care required,Bob Johnson,12/25/2024

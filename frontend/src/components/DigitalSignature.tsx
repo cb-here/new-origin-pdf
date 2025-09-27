@@ -13,6 +13,7 @@ interface DigitalSignatureProps {
   prefillName?: string;
   allowTypedSignature?: boolean;
   existingSignature?: string; // Add prop for existing signature data
+  prefillSignature?: string; // Add alias for existingSignature
 }
 
 export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
@@ -21,17 +22,22 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
   required = false,
   prefillName = "",
   allowTypedSignature = true,
-  existingSignature = ""
+  existingSignature = "",
+  prefillSignature = ""
 }) => {
+  // Use prefillSignature if provided, otherwise use existingSignature
+  const signatureToLoad = prefillSignature || existingSignature;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [signatureMode, setSignatureMode] = useState<'draw' | 'type'>('type'); // Default to type mode
   const [typedSignature, setTypedSignature] = useState(prefillName);
+  const [isSignatureLoaded, setIsSignatureLoaded] = useState(false);
+  const [userCleared, setUserCleared] = useState(false);
 
-  // Load existing signature if provided
+  // Load existing signature if provided (only if user hasn't cleared it)
   useEffect(() => {
-    if (existingSignature && existingSignature.startsWith('data:image/')) {
+    if (signatureToLoad && signatureToLoad.startsWith('data:image/') && !isSignatureLoaded && !userCleared) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -43,21 +49,47 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
         // Clear canvas first
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw the existing signature
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        // Get display dimensions (not canvas internal dimensions)
+        const rect = canvas.getBoundingClientRect();
+        const displayWidth = rect.width;
+        const displayHeight = rect.height;
+
+        // Calculate centered position
+        const imageAspectRatio = image.width / image.height;
+        const canvasAspectRatio = displayWidth / displayHeight;
+
+        let drawWidth, drawHeight, drawX, drawY;
+
+        if (imageAspectRatio > canvasAspectRatio) {
+          // Image is wider than canvas
+          drawWidth = displayWidth * 0.8; // 80% of canvas width
+          drawHeight = drawWidth / imageAspectRatio;
+        } else {
+          // Image is taller than canvas
+          drawHeight = displayHeight * 0.8; // 80% of canvas height
+          drawWidth = drawHeight * imageAspectRatio;
+        }
+
+        // Center the image
+        drawX = (displayWidth - drawWidth) / 2;
+        drawY = (displayHeight - drawHeight) / 2;
+
+        // Draw the existing signature centered
+        ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
 
         setHasSignature(true);
-        onSignatureChange(existingSignature);
+        setIsSignatureLoaded(true);
+        onSignatureChange(signatureToLoad);
 
         console.log('Existing signature loaded:', {
           title: title,
-          signatureData: existingSignature,
+          signatureData: signatureToLoad,
           loaded: true
         });
       };
-      image.src = existingSignature;
+      image.src = signatureToLoad;
     }
-  }, [existingSignature, title, onSignatureChange]);
+  }, [signatureToLoad, title, onSignatureChange, isSignatureLoaded, userCleared]);
 
   // Update typed signature when prefillName changes
   useEffect(() => {
@@ -175,17 +207,19 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
 
   const stopDrawing = () => {
     if (!isDrawing) return;
-    
+
     setIsDrawing(false);
     setHasSignature(true);
-    
+    setIsSignatureLoaded(true); // Mark that user has actively drawn a signature
+    setUserCleared(false); // Reset cleared state since user drew new signature
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     // Convert to base64 and notify parent
     const signatureData = canvas.toDataURL('image/png');
     onSignatureChange(signatureData);
-    
+
     // Log readable format to console as requested
     console.log('Digital Signature Captured:', {
       timestamp: new Date().toISOString(),
@@ -204,7 +238,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
 
   const generateTypedSignature = () => {
     if (!typedSignature.trim()) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -213,20 +247,22 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Set signature style with professional signature font
     ctx.font = '36px "Dancing Script", cursive';
     ctx.fillStyle = 'hsl(var(--signature-stroke))';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
+
     // Draw typed signature centered (accounting for device pixel ratio)
     const rect = canvas.getBoundingClientRect();
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     ctx.fillText(typedSignature, centerX, centerY);
-    
+
     setHasSignature(true);
+    setIsSignatureLoaded(true); // Mark that user has actively generated a signature
+    setUserCleared(false); // Reset cleared state since user generated new signature
     const signatureData = canvas.toDataURL('image/png');
     onSignatureChange(signatureData);
 
@@ -255,9 +291,11 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasSignature(false);
+    setUserCleared(true); // Mark that user has cleared the signature
+    setIsSignatureLoaded(false); // Allow new signatures to be loaded if needed
     setTypedSignature(prefillName);
     onSignatureChange('');
-    
+
     toast.info('Signature cleared');
   };
 

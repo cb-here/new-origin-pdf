@@ -395,31 +395,7 @@ export const SOCForm: React.FC = () => {
 
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="bg-gradient-primary bg-clip-text text-transparent">
-                {isEditMode ? "Edit SOC Document" : "SOC Packet Form"}
-              </span>
-            </h1>
-            <p className="text-muted-foreground">
-              {isEditMode
-                ? "Edit your existing Start of Care documentation"
-                : "Complete your Start of Care documentation with digital signatures"}
-            </p>
-            {isEditMode && (
-              <p className="text-sm text-blue-600 font-medium mt-2">
-                📝 Editing Document ID: {editingDocumentId}
-              </p>
-            )}
-          </div>
-
-          {/* Step 1: Client Information */}
-          <FormStep
-            title="Client Information"
-            description="Enter basic client and healthcare provider information"
-            isActive={currentStep === 1}
-            pageNumber="Page 1 of 11"
-          >
+          <FormStep isActive={currentStep === 1}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="nurse">Nurse / Enfermera</Label>
@@ -477,12 +453,7 @@ export const SOCForm: React.FC = () => {
           </FormStep>
 
           {/* Step 2: Consent/Agreement */}
-          <FormStep
-            title="Consent & Authorization"
-            description="Patient consent and authorization details"
-            isActive={currentStep === 2}
-            pageNumber="Page 3 of 11"
-          >
+          <FormStep isActive={currentStep === 2}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="patientName">
@@ -586,12 +557,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          <FormStep
-            title="Billing & Payer Information"
-            description="Payment sources and billing details"
-            isActive={currentStep === 3}
-            pageNumber="Page 4 of 11"
-          >
+          <FormStep isActive={currentStep === 3}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="payerForServices">Payer for Services</Label>
@@ -732,13 +698,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 4: Policies & Advanced Directives */}
-          <FormStep
-            title="Agency Policies & Advanced Directives"
-            description="Advanced directives and photography permissions"
-            isActive={currentStep === 4}
-            pageNumber="Page 7 of 11"
-          >
+          <FormStep isActive={currentStep === 4}>
             <div className="space-y-8">
               <div className="space-y-4">
                 <Label>Advance Directive</Label>
@@ -798,13 +758,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 5: Authorization & Signatures */}
-          <FormStep
-            title="Authorization & Signatures"
-            description="Digital signatures and authorizations"
-            isActive={currentStep === 5}
-            pageNumber="Page 8 of 11"
-          >
+          <FormStep isActive={currentStep === 5}>
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
@@ -973,13 +927,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 6: Bill of Rights */}
-          <FormStep
-            title="Bill of Rights"
-            description="Patient rights acknowledgment"
-            isActive={currentStep === 6}
-            pageNumber="Page 9 of 11"
-          >
+          <FormStep isActive={currentStep === 6}>
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="billOfRightsPatientName">Patient Name</Label>
@@ -1006,13 +954,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 7: Patient Responsibilities */}
-          <FormStep
-            title="Patient Responsibilities"
-            description="Patient responsibilities confirmation"
-            isActive={currentStep === 7}
-            pageNumber="Page 10 of 11"
-          >
+          <FormStep isActive={currentStep === 7}>
             <div className="space-y-6">
               <div className="bg-muted/30 p-6 rounded-lg">
                 <h3 className="font-semibold mb-4">Patient Responsibilities</h3>
@@ -1034,13 +976,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 8: Emergency Information */}
-          <FormStep
-            title="Emergency Information"
-            description="Emergency contact and disaster planning"
-            isActive={currentStep === 8}
-            pageNumber="Page 11 of 11"
-          >
+          <FormStep isActive={currentStep === 8}>
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -1392,12 +1328,8 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 9: Data Consent */}
-          <FormStep
-            title="Data Consent"
-            description="Patient consent for data collection"
-            isActive={currentStep === 9}
-          >
+          
+          <FormStep isActive={currentStep === 9}>
             <div className="space-y-6">
               <div className="bg-muted/30 p-6 rounded-lg">
                 <h3 className="font-semibold mb-4">
@@ -1421,12 +1353,7 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          {/* Step 10: Medication Review */}
-          <FormStep
-            title="Medication Discrepancy Tool"
-            description="Medication review and discrepancy documentation"
-            isActive={currentStep === 10}
-          >
+          <FormStep isActive={currentStep === 10}>
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">

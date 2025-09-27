@@ -1,11 +1,25 @@
-import React, { useState, useRef } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Upload, FileSpreadsheet, Download, AlertCircle, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { generateBulkPatientConsentPDF } from '@/lib/api';
+import React, { useState, useRef } from "react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Upload,
+  Download,
+  Copy,
+  Check,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { generateBulkPatientConsentPDF } from "@/lib/api";
 
 interface CSVRow {
   patientName: string;
@@ -13,20 +27,29 @@ interface CSVRow {
   soc: string;
   certificationStart: string;
   certificationEnd: string;
-  discipline1: string;
-  newFrequency1: string;
-  discipline2: string;
-  newFrequency2: string;
-  discipline3: string;
-  newFrequency3: string;
-  discipline4: string;
-  newFrequency4: string;
-  discipline5: string;
-  newFrequency5: string;
-  discipline6: string;
-  newFrequency6: string;
+  startMonth: string;
+  endMonth: string;
+  discipline1?: string;
+  newFrequency1?: string;
+  discipline2?: string;
+  newFrequency2?: string;
+  discipline3?: string;
+  newFrequency3?: string;
+  discipline4?: string;
+  newFrequency4?: string;
+  discipline5?: string;
+  newFrequency5?: string;
+  discipline6?: string;
+  newFrequency6?: string;
+  patientSignature: string;
   patientSignatureDate: string;
+  agencyRepSignature: string;
   agencyRepDate: string;
+}
+
+interface CSVParseResult {
+  data: CSVRow[];
+  errors: string[];
 }
 
 export interface ConsentBulkRecord {
@@ -38,125 +61,176 @@ export interface ConsentBulkRecord {
   patientSignatureDate: string;
   agencyRepDate: string;
   timestamp: string;
-  source: 'bulk';
+  source: "bulk";
 }
 
 interface CSVUploadProps {
-  onFormsAdded?: (forms: ConsentBulkRecord[]) => void;
+  onDataParsed: (data: any[]) => void;
 }
 
-const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({ onFormsAdded }) => {
-  const [csvData, setCsvData] = useState<CSVRow[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
+  onDataParsed,
+}) => {
+  const [csvText, setCsvText] = useState('');
+  const [parseResult, setParseResult] = useState<CSVParseResult | null>(null);
+  const [copied, setCopied] = useState(false);
   const [isGeneratingPDFs, setIsGeneratingPDFs] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const downloadTemplate = () => {
+  const generateCSVTemplate = () => {
     const headers = [
-      'patientName',
-      'mrn',
-      'soc',
-      'certificationStart',
-      'certificationEnd',
-      'discipline1',
-      'newFrequency1',
-      'discipline2',
-      'newFrequency2',
-      'discipline3',
-      'newFrequency3',
-      'discipline4',
-      'newFrequency4',
-      'discipline5',
-      'newFrequency5',
-      'discipline6',
-      'newFrequency6',
-      'patientSignatureDate',
-      'agencyRepDate'
+      "patientName",
+      "mrn",
+      "soc",
+      "certificationStart",
+      "certificationEnd",
+      "startMonth",
+      "endMonth",
+      "discipline1",
+      "newFrequency1",
+      "discipline2",
+      "newFrequency2",
+      "discipline3",
+      "newFrequency3",
+      "discipline4",
+      "newFrequency4",
+      "discipline5",
+      "newFrequency5",
+      "discipline6",
+      "newFrequency6",
+      "patientSignature",
+      "patientSignatureDate",
+      "agencyRepSignature",
+      "agencyRepDate",
     ];
 
     const sampleData = [
-      'John Doe',
-      '123456',
-      '2024-01-01',
-      '2024-01-01',
-      '2024-03-31',
-      'Physical Therapy',
-      '3x/week',
-      'Occupational Therapy',
-      '2x/week',
-      'Speech Therapy',
-      '1x/week',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '2024-01-01',
-      '2024-01-01'
+      "John Doe",
+      "123456",
+      "2024-01-01",
+      "2024-01-01",
+      "2024-03-31",
+      "01",
+      "02",
+      "Physical Therapy",
+      "3x/week",
+      "Occupational Therapy",
+      "2x/week",
+      "Speech Therapy",
+      "1x/week",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "John Doe",
+      "2024-01-01",
+      "Agency Representative",
+      "2024-01-01",
     ];
 
-    const csvContent = [headers.join(','), sampleData.join(',')].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    return [headers.join(","), sampleData.join(",")].join("\n");
+  };
+
+  const handleCopyTemplate = async () => {
+    const template = generateCSVTemplate();
+    try {
+      await navigator.clipboard.writeText(template);
+      setCopied(true);
+      toast.success('CSV template copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy template');
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const template = generateCSVTemplate();
+    const blob = new Blob([template], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'patient-consent-template.csv';
+    a.download = "patient-consent-template.csv";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    toast.success('CSV template downloaded');
+    toast.success("Template downloaded");
   };
 
-  const parseCSV = (csvText: string): CSVRow[] => {
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-      const row: any = {};
-      
-      headers.forEach((header, index) => {
-        row[header] = values[index] || '';
-      });
-      
-      return row as CSVRow;
-    });
-  };
+  const parseCSVText = (text: string): CSVParseResult => {
+    const errors: string[] = [];
+    const data: CSVRow[] = [];
 
-  const convertToJSON = (csvRows: CSVRow[]): ConsentBulkRecord[] => {
-    return csvRows.map(row => {
-      const disciplineFrequencies: { discipline: string; newFrequency: string }[] = [];
-      
-      for (let i = 1; i <= 6; i++) {
-        const discipline = (row as any)[`discipline${i}`] as string | undefined;
-        const frequency = (row as any)[`newFrequency${i}`] as string | undefined;
-        
-        if (discipline || frequency) {
-          disciplineFrequencies.push({
-            discipline: discipline || '',
-            newFrequency: frequency || ''
-          });
+    if (!text.trim()) {
+      return { data, errors: ['CSV text is empty'] };
+    }
+
+    try {
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) {
+        errors.push('CSV must have at least a header row and one data row');
+        return { data, errors };
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const requiredHeaders = ['patientName', 'mrn', 'soc', 'certificationStart', 'certificationEnd', 'startMonth', 'endMonth', 'patientSignature', 'agencyRepSignature'];
+
+      // Check for required headers
+      for (const required of requiredHeaders) {
+        if (!headers.includes(required)) {
+          errors.push(`Missing required header: ${required}`);
         }
       }
 
-      return {
-        patientName: row.patientName,
-        mrn: row.mrn,
-        soc: row.soc,
-        certificationPeriod: `${row.certificationStart} - ${row.certificationEnd}`,
-        disciplineFrequencies,
-        patientSignatureDate: row.patientSignatureDate,
-        agencyRepDate: row.agencyRepDate,
-        timestamp: new Date().toISOString(),
-        source: 'bulk' as const,
-      };
-    });
+      if (errors.length > 0) {
+        return { data, errors };
+      }
+
+      // Parse data rows
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const row: any = {};
+
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+
+        // Validate required fields
+        if (!row.patientName) {
+          errors.push(`Row ${i}: Patient name is required`);
+        }
+        if (!row.mrn) {
+          errors.push(`Row ${i}: MRN is required`);
+        }
+        if (!row.startMonth) {
+          errors.push(`Row ${i}: Start month is required`);
+        }
+        if (!row.endMonth) {
+          errors.push(`Row ${i}: End month is required`);
+        }
+        if (!row.patientSignature) {
+          errors.push(`Row ${i}: Patient signature is required`);
+        }
+        if (!row.agencyRepSignature) {
+          errors.push(`Row ${i}: Agency representative signature is required`);
+        }
+
+        data.push(row as CSVRow);
+      }
+
+    } catch (error) {
+      errors.push(`Error parsing CSV: ${error.message}`);
+    }
+
+    return { data, errors };
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -165,36 +239,41 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({ onFormsAdded }) => 
       return;
     }
 
-    setIsProcessing(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      setCsvText(text);
+      handleParseCSV(text);
+    };
+    reader.readAsText(file);
+  };
 
-    try {
-      const text = await file.text();
-      const parsedData = parseCSV(text);
-      setCsvData(parsedData);
+  const handleParseCSV = (text: string = csvText) => {
+    if (!text.trim()) {
+      setParseResult(null);
+      return;
+    }
 
-      const jsonOutput = convertToJSON(parsedData);
-      console.log('Bulk CSV Upload - Patient Consent Forms:', jsonOutput);
+    const result = parseCSVText(text);
+    setParseResult(result);
 
-      onFormsAdded?.(jsonOutput);
-
-      toast.success(`${parsedData.length} records processed and added to forms list.`);
-    } catch (error) {
-      console.error('Error processing CSV:', error);
-      toast.error('Failed to process the CSV file. Please check the format.');
-    } finally {
-      setIsProcessing(false);
+    if (result.errors.length === 0) {
+      toast.success(`Successfully parsed ${result.data.length} rows`);
+    } else {
+      toast.error(`Found ${result.errors.length} errors in CSV`);
     }
   };
 
-  const clearData = () => {
-    setCsvData([]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    toast.success('All uploaded data has been cleared.');
+  const handleProcessData = () => {
+    if (parseResult && parseResult.errors.length === 0) {
+      onDataParsed(parseResult.data);
+      toast.success('CSV data processed successfully');
+    }
   };
 
   const handleBulkPDFGeneration = async () => {
-    if (csvData.length === 0) {
-      toast.error('No data to process. Please upload a CSV file first.');
+    if (!parseResult || parseResult.data.length === 0) {
+      toast.error("No data to process. Please parse CSV data first.");
       return;
     }
 
@@ -202,7 +281,7 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({ onFormsAdded }) => 
 
     try {
       // Convert CSV data to the format expected by the backend
-      const bulkData = csvData.map(row => {
+      const bulkData = parseResult.data.map((row) => {
         const disciplineFrequencies = [];
 
         // Convert individual discipline fields to array format
@@ -211,8 +290,8 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({ onFormsAdded }) => 
           const frequency = (row as any)[`newFrequency${i}`] as string;
 
           disciplineFrequencies.push({
-            discipline: discipline || '',
-            newFrequency: frequency || ''
+            discipline: discipline || "",
+            newFrequency: frequency || "",
           });
         }
 
@@ -222,128 +301,190 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({ onFormsAdded }) => 
           soc: row.soc,
           certificationStart: row.certificationStart,
           certificationEnd: row.certificationEnd,
+          startMonth: row.startMonth,
+          endMonth: row.endMonth,
           disciplineFrequencies,
+          patientSignature: row.patientSignature,
           patientSignatureDate: row.patientSignatureDate,
+          agencyRepSignature: row.agencyRepSignature,
           agencyRepDate: row.agencyRepDate,
-          // Add default signature values for bulk processing
-          patientSignature: row.patientName, // Convert name to signature
-          agencyRepSignature: 'Agency Representative'
         };
       });
 
       await generateBulkPatientConsentPDF(bulkData, false);
 
-      toast.success(`Successfully generated ${csvData.length} Patient Consent PDFs!`);
+      toast.success(
+        `Successfully generated ${parseResult.data.length} Patient Consent PDFs!`
+      );
 
       // Clear the data after successful generation
-      clearData();
-
+      setCsvText('');
+      setParseResult(null);
     } catch (error) {
-      console.error('Error generating bulk PDFs:', error);
-      toast.error('Failed to generate PDFs. Please try again.');
+      console.error("Error generating bulk PDFs:", error);
+      toast.error("Failed to generate PDFs. Please try again.");
     } finally {
       setIsGeneratingPDFs(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl flex items-center gap-3">
-          <FileSpreadsheet className="w-6 h-6" />
-          Bulk CSV Upload
-        </CardTitle>
-        <CardDescription>
-          Upload a CSV file using the template below to create multiple Patient Consent forms.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="bg-muted rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium mb-2">CSV Format Requirements:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs text-muted-foreground">
-                <li>Use the provided template for correct column headers</li>
-                <li>Date format: YYYY-MM-DD (e.g., 2024-01-01)</li>
-                <li>Up to 6 discipline/frequency pairs supported</li>
-                <li>Empty discipline/frequency pairs will be ignored</li>
-              </ul>
-            </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>CSV Upload for Bulk Patient Consent Forms</CardTitle>
+          <CardDescription>
+            Upload or paste CSV data to create multiple Patient Consent forms at once
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={handleCopyTemplate}
+              className="flex items-center gap-2"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied!' : 'Copy Template'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownloadTemplate}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download Template
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Upload CSV File
+            </Button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Button onClick={downloadTemplate} variant="outline" className="flex items-center gap-2 h-12">
-            <Download className="w-5 h-5" />
-            Download CSV Template
-          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
 
           <div className="space-y-2">
-            <Label htmlFor="csvFile" className="text-sm font-medium">Upload CSV File</Label>
-            <div className="relative">
-              <Input
-                id="csvFile"
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                disabled={isProcessing}
-              />
-              {isProcessing && (
-                <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-md">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                </div>
-              )}
-            </div>
+            <label className="text-sm font-medium">
+              Or paste CSV data here:
+            </label>
+            <Textarea
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              placeholder="patientName,mrn,soc,certificationStart,certificationEnd,startMonth,endMonth,discipline1,newFrequency1,discipline2,newFrequency2,discipline3,newFrequency3,discipline4,newFrequency4,discipline5,newFrequency5,discipline6,newFrequency6,patientSignature,patientSignatureDate,agencyRepSignature,agencyRepDate"
+              rows={6}
+              className="font-mono text-sm"
+            />
           </div>
-        </div>
 
-        {csvData.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Processed Records: {csvData.length}</h3>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleBulkPDFGeneration}
-                  disabled={isGeneratingPDFs}
-                  className="flex items-center gap-2"
-                >
-                  {isGeneratingPDFs ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Generating PDFs...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      Generate {csvData.length} PDFs
-                    </>
-                  )}
-                </Button>
-                <Button onClick={clearData} variant="outline" size="sm">
-                  Clear Data
-                </Button>
-              </div>
-            </div>
-            <div className="bg-muted rounded-lg p-4 max-h-64 overflow-y-auto">
-              <div className="space-y-2">
-                {csvData.map((row, index) => (
-                  <div key={index} className="bg-background rounded p-3 text-sm">
-                    <div className="font-medium">
-                      {row.patientName || `Patient ${index + 1}`} (MRN: {row.mrn})
-                    </div>
-                    <div className="text-muted-foreground text-xs mt-1">
-                      SOC: {row.soc} | Cert: {row.certificationStart} - {row.certificationEnd}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="flex gap-2">
+            <Button onClick={() => handleParseCSV()}>
+              Parse CSV Data
+            </Button>
+            {parseResult && parseResult.errors.length === 0 && (
+              <Button onClick={handleProcessData} className="bg-primary">
+                Process {parseResult.data.length} Forms
+              </Button>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {parseResult && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Parse Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {parseResult.errors.length > 0 && (
+              <Alert className="mb-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium">Found {parseResult.errors.length} errors:</p>
+                    <ul className="list-disc list-inside text-sm">
+                      {parseResult.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {parseResult.data.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Parsed Data ({parseResult.data.length} rows):</h4>
+                  <Button
+                    onClick={handleBulkPDFGeneration}
+                    disabled={isGeneratingPDFs}
+                    className="flex items-center gap-2"
+                  >
+                    {isGeneratingPDFs ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating PDFs...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Generate {parseResult.data.length} PDFs
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="border rounded-md max-h-96 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className='whitespace-nowrap'>Patient Name</TableHead>
+                        <TableHead className='whitespace-nowrap'>MRN</TableHead>
+                        <TableHead className='whitespace-nowrap'>SOC</TableHead>
+                        <TableHead className='whitespace-nowrap'>Cert Start</TableHead>
+                        <TableHead className='whitespace-nowrap'>Cert End</TableHead>
+                        <TableHead className='whitespace-nowrap'>Start Month</TableHead>
+                        <TableHead className='whitespace-nowrap'>End Month</TableHead>
+                        <TableHead className='whitespace-nowrap'>Discipline 1</TableHead>
+                        <TableHead className='whitespace-nowrap'>Frequency 1</TableHead>
+                        <TableHead className='whitespace-nowrap'>Patient Signature</TableHead>
+                        <TableHead className='whitespace-nowrap'>Agency Signature</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parseResult.data.map((row, index) => (
+                        <TableRow key={index}>
+                          <TableCell className='whitespace-nowrap'>{row.patientName}</TableCell>
+                          <TableCell className="font-mono text-sm whitespace-nowrap">{row.mrn}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.soc}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.certificationStart}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.certificationEnd}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.startMonth}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.endMonth}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.discipline1 || '-'}</TableCell>
+                          <TableCell className='whitespace-nowrap'>{row.newFrequency1 || '-'}</TableCell>
+                          <TableCell className='whitespace-nowrap max-w-32 truncate'>{row.patientSignature}</TableCell>
+                          <TableCell className='whitespace-nowrap max-w-32 truncate'>{row.agencyRepSignature}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
 
