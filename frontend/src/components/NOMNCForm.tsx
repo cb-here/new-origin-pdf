@@ -400,7 +400,10 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                           id="plan_contact_info"
                           value={formData.currentPlanInfo}
                           onChange={(e) =>
-                            updateFormData("currentPlanInfo", e.target.value)
+                            updateFormData(
+                              "currentPlanInfo",
+                              e.target.value.replace(/\n/g, " ")
+                            )
                           }
                           placeholder="Plan name, phone, email, address"
                           rows={4}
@@ -415,7 +418,10 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                           id="additional_info"
                           value={formData.additionalInfo}
                           onChange={(e) =>
-                            updateFormData("additionalInfo", e.target.value)
+                            updateFormData(
+                              "additionalInfo",
+                              e.target.value.replace(/\n/g, " ")
+                            )
                           }
                           placeholder="Enter any additional information"
                           rows={3}
