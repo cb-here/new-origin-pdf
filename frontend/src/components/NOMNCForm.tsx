@@ -65,7 +65,6 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
       .toISOString()
       .split("T")[0],
   });
-  console.log("🚀 ~ NOMNCForm ~ formData:", formData);
 
   const updateFormData = (field, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -104,7 +103,6 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
           new Date().toISOString().split("T")[0],
       });
     } else if (!isEditMode) {
-      // Reset form when exiting edit mode
       resetFormData();
     }
   }, [isEditMode, editingForm]);
@@ -166,15 +164,11 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
     setIsGenerating(true);
     try {
       if (isEditMode && editingForm?._id) {
-        // Update the form
         await updateNOMNCForm(editingForm._id, formData, formData.patientName);
         toast.success("NOMNC form updated successfully!");
 
-        // Download the PDF (skip saving since we just updated)
         await downloadNomncPDF(editingForm._id, formData, formData.patientName);
-        toast.success("PDF downloaded successfully!");
 
-        // Redirect to dashboard tab and refresh data
         onFormUpdated?.();
       } else {
         const payload = { patientData: formData };

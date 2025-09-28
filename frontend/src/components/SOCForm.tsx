@@ -18,11 +18,9 @@ import { FormStep } from "./FormStep";
 import {
   ChevronLeft,
   ChevronRight,
-  Download,
   Save,
   Plus,
   Minus,
-  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -217,64 +215,69 @@ export const SOCForm: React.FC = () => {
     }
   }, []);
 
+  // Single effect to handle all field synchronization - prevents infinite loops
   useEffect(() => {
+    const updates: Partial<FormData> = {};
+
+    // Sync patient names
     if (formData.patientName) {
-      if (!formData.billOfRightsPatientName) {
-        updateFormData("billOfRightsPatientName", formData.patientName);
+      if (formData.billOfRightsPatientName !== formData.patientName) {
+        updates.billOfRightsPatientName = formData.patientName;
       }
-      if (!formData.clientName) {
-        updateFormData("clientName", formData.patientName);
+      if (formData.clientName !== formData.patientName) {
+        updates.clientName = formData.patientName;
       }
-      if (!formData.mdtPatient) {
-        updateFormData("mdtPatient", formData.patientName);
+      if (formData.mdtPatient !== formData.patientName) {
+        updates.mdtPatient = formData.patientName;
+      }
+    } else if (formData.clientName && !formData.patientName) {
+      // If patient name is empty but client name exists, use client name
+      updates.patientName = formData.clientName;
+      if (formData.billOfRightsPatientName !== formData.clientName) {
+        updates.billOfRightsPatientName = formData.clientName;
+      }
+      if (formData.mdtPatient !== formData.clientName) {
+        updates.mdtPatient = formData.clientName;
       }
     }
 
-    if (formData.clientName && !formData.patientName) {
-      updateFormData("patientName", formData.clientName);
+    // Sync MR numbers
+    if (formData.mrNumber && formData.emergencyMrNumber !== formData.mrNumber) {
+      updates.emergencyMrNumber = formData.mrNumber;
+    } else if (formData.emergencyMrNumber && !formData.mrNumber) {
+      updates.mrNumber = formData.emergencyMrNumber;
     }
 
-    if (formData.mrNumber && !formData.emergencyMrNumber) {
-      updateFormData("emergencyMrNumber", formData.mrNumber);
-    }
-    if (formData.emergencyMrNumber && !formData.mrNumber) {
-      updateFormData("mrNumber", formData.emergencyMrNumber);
-    }
-
-    if (formData.allergies && !formData.emergencyAllergies) {
-      updateFormData("emergencyAllergies", formData.allergies);
-    }
-    if (formData.emergencyAllergies && !formData.allergies) {
-      updateFormData("allergies", formData.emergencyAllergies);
+    // Sync allergies
+    if (formData.allergies && formData.emergencyAllergies !== formData.allergies) {
+      updates.emergencyAllergies = formData.allergies;
+    } else if (formData.emergencyAllergies && formData.allergies !== formData.emergencyAllergies) {
+      updates.allergies = formData.emergencyAllergies;
     }
 
-    // Sync signatures - client signature maps to patient signature
-    if (formData.patientSignature && !formData.clientSignature) {
-      updateFormData("clientSignature", formData.patientSignature);
+    // Sync signatures
+    if (formData.patientSignature && formData.clientSignature !== formData.patientSignature) {
+      updates.clientSignature = formData.patientSignature;
+    } else if (formData.clientSignature && !formData.patientSignature) {
+      updates.patientSignature = formData.clientSignature;
+    }
+
+    // Apply all updates at once to prevent multiple re-renders
+    if (Object.keys(updates).length > 0) {
+      setFormData(prev => ({ ...prev, ...updates }));
     }
   }, [
     formData.patientName,
     formData.clientName,
+    formData.billOfRightsPatientName,
+    formData.mdtPatient,
     formData.mrNumber,
     formData.emergencyMrNumber,
     formData.allergies,
     formData.emergencyAllergies,
     formData.patientSignature,
+    formData.clientSignature
   ]);
-
-  const exportJSON = () => {
-    const jsonData = JSON.stringify(formData, null, 2);
-
-    const blob = new Blob([jsonData], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `soc-form-${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    toast.success("Form data exported as JSON!");
-  };
 
   const saveProgress = async () => {
     try {
@@ -354,7 +357,7 @@ export const SOCForm: React.FC = () => {
       setIsGeneratingPDF(true);
 
       if (isEditMode && editingDocumentId) {
-        // If in edit mode, update the existing document
+        // Step 1: Update the existing document
         toast.loading("Updating document...", { id: "pdf-generation" });
         await updateDocument(
           editingDocumentId,
@@ -364,14 +367,34 @@ export const SOCForm: React.FC = () => {
         toast.success("Document updated successfully!", {
           id: "pdf-generation",
         });
+
+        // Step 2: Download PDF with skipSave (no database save needed)
+        toast.loading("Downloading PDF...", { id: "pdf-generation" });
+        await generatePDF(
+          formData,
+          formData.patientName || formData.clientName,
+          true // skipSave = true
+        );
+        toast.success("PDF downloaded successfully!", { id: "pdf-generation" });
+
+        // Step 3: Redirect to dashboard with updated data
+        setTimeout(() => {
+          navigate("/esoc", { state: { activeTab: "dashboard" } });
+        }, 1000);
       } else {
         // If not in edit mode, create new document and generate PDF
         toast.loading("Generating PDF...", { id: "pdf-generation" });
         await generatePDF(
           formData,
-          formData.patientName || formData.clientName
+          formData.patientName || formData.clientName,
+          false // skipSave = false for new documents
         );
         toast.success("PDF generated successfully!", { id: "pdf-generation" });
+
+        // Redirect to dashboard
+        setTimeout(() => {
+          navigate("/esoc", { state: { activeTab: "dashboard" } });
+        }, 1000);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -384,6 +407,97 @@ export const SOCForm: React.FC = () => {
     }
   };
 
+  const handleCancel = () => {
+    // Reset form data
+    setFormData({
+      nurse: "",
+      physicalTherapist: "",
+      occupationalTherapist: "",
+      physician: "",
+      allergies: "",
+      patientName: "",
+      mrNumber: "",
+      socDate: "",
+      referralSourceStartDate: "",
+      referralSourceEndDate: "",
+      agencyName: "Genesis Healthcare DBA Origin Home Health Care",
+      reasonForServices: "",
+      certificationStart: "",
+      certificationEnd: "",
+      payerForServices: "",
+      hmoMembership: "",
+      billingMethod: "",
+      insuranceAmounts: "",
+      billingPercentage: "",
+      services: [
+        { service: "Skilled Nursing", frequencyDuration: "" },
+        { service: "Physical Therapy", frequencyDuration: "" },
+        { service: "Home Health Aide", frequencyDuration: "" },
+        { service: "Occupational Therapy", frequencyDuration: "" },
+        { service: "Medical Social Worker", frequencyDuration: "" },
+        { service: "Other", frequencyDuration: "" },
+      ],
+      advanceDirective: "",
+      photographyPermission: "",
+      fundsAuthorization: "",
+      fundsInitials: "",
+      vehicleAuthorization: "",
+      vehicleInitials: "",
+      patientSignature: "",
+      relationshipToPatient: "",
+      patientSignatureDate: "",
+      agencyRepSignature: "",
+      agencyRepTitle: "",
+      agencyRepDate: "",
+      patientUnableToSign: false,
+      billOfRightsPatientName: "",
+      responsibilitiesSignature: "",
+      clientName: "",
+      dateOfBirth: "",
+      age: "",
+      formDate: "",
+      emergencyMrNumber: "",
+      address: "",
+      caregiverName: "",
+      caregiverPhone: "",
+      primaryLanguage: "",
+      pharmacy: "",
+      doctor: "",
+      emergencyContact: "",
+      emergencyRelationship: "",
+      emergencyPhone: "",
+      mentalStatusOriented: false,
+      mentalStatusDisoriented: false,
+      mentalStatusDementia: false,
+      mentalStatusForgetful: false,
+      mentalStatusAlert: false,
+      mentalStatusAlzheimer: false,
+      emergencyClassification: "",
+      clientSignature: "",
+      emergencyAllergies: "",
+      stayHome: false,
+      evacuateTo: "",
+      clinicianName: "",
+      clinicianSignature: "",
+      clinicianSignatureDate: "",
+      dataConsentSignature: "",
+      mdtPatient: "",
+      mdtPhysician: "",
+      mdtPhysicianFax: "",
+      mdtOasisDate: "",
+      medications: [],
+    });
+
+    // Reset steps
+    setCurrentStep(1);
+    setCompletedSteps([]);
+    setIsEditMode(false);
+    setEditingDocumentId(null);
+
+    // Navigate to dashboard tab
+    navigate("/esoc", { state: { activeTab: "dashboard" } });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-subtle flex">
       <SidebarNavigation
@@ -393,8 +507,8 @@ export const SOCForm: React.FC = () => {
         onStepClick={goToStep}
       />
 
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
+      <div className="flex-1 p-6 overflow-y-auto bg-card sm:ml-3 h-full rounded-lg">
+        <div className="">
           <FormStep isActive={currentStep === 1}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -441,12 +555,11 @@ export const SOCForm: React.FC = () => {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="allergies">Allergies / Alergias</Label>
-                <Textarea
+                <Input
                   id="allergies"
                   value={formData.allergies}
                   onChange={(e) => updateFormData("allergies", e.target.value)}
-                  placeholder="Describe any allergies"
-                  rows={3}
+                  placeholder="Enter allergy Name"
                 />
               </div>
             </div>
@@ -462,24 +575,14 @@ export const SOCForm: React.FC = () => {
                 <Input
                   id="patientName"
                   value={formData.patientName}
-                  onChange={(e) => {
-                    updateFormData("patientName", e.target.value);
-                    // Auto-fill related fields
-                    if (!formData.clientName) {
-                      updateFormData("clientName", e.target.value);
-                    }
-                    if (!formData.billOfRightsPatientName) {
-                      updateFormData("billOfRightsPatientName", e.target.value);
-                    }
-                    if (!formData.mdtPatient) {
-                      updateFormData("mdtPatient", e.target.value);
-                    }
-                  }}
+                  onChange={(e) =>
+                    updateFormData("patientName", e.target.value)
+                  }
                   placeholder="Enter patient's full name"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mrNumber">MR #</Label>
+                <Label htmlFor="mrNumber">MRN</Label>
                 <Input
                   id="mrNumber"
                   value={formData.mrNumber}
@@ -655,9 +758,10 @@ export const SOCForm: React.FC = () => {
                   id="billingPercentage"
                   type="number"
                   value={formData.billingPercentage}
-                  onChange={(e) =>
-                    updateFormData("billingPercentage", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const value = Math.min(Number(e.target.value), 100);
+                    updateFormData("billingPercentage", value.toString());
+                  }}
                   placeholder="Enter percentage"
                   max="100"
                 />
@@ -793,7 +897,7 @@ export const SOCForm: React.FC = () => {
                       }
                       placeholder="Enter initials"
                       maxLength={3}
-                      className="w-20"
+                      className="w-full"
                     />
                   </div>
                 </div>
@@ -833,7 +937,7 @@ export const SOCForm: React.FC = () => {
                       }
                       placeholder="Enter initials"
                       maxLength={3}
-                      className="w-20"
+                      className="w-full"
                     />
                   </div>
                 </div>
@@ -841,13 +945,11 @@ export const SOCForm: React.FC = () => {
 
               <DigitalSignature
                 title="Patient/Authorized Agent Signature"
-                onSignatureChange={(signature) => {
-                  updateFormData("patientSignature", signature);
-                  if (!formData.clientSignature) {
-                    updateFormData("clientSignature", signature);
-                  }
-                }}
+                onSignatureChange={(signature) =>
+                  updateFormData("patientSignature", signature)
+                }
                 prefillName={formData.patientName}
+                prefillSignature={formData.patientSignature}
                 required
               />
 
@@ -883,6 +985,7 @@ export const SOCForm: React.FC = () => {
                 onSignatureChange={(signature) =>
                   updateFormData("agencyRepSignature", signature)
                 }
+                prefillSignature={formData.agencyRepSignature}
                 required
               />
 
@@ -971,6 +1074,7 @@ export const SOCForm: React.FC = () => {
                   updateFormData("responsibilitiesSignature", signature)
                 }
                 prefillName={formData.patientName}
+                prefillSignature={formData.patientSignature}
                 required
               />
             </div>
@@ -984,13 +1088,9 @@ export const SOCForm: React.FC = () => {
                   <Input
                     id="clientName"
                     value={formData.clientName}
-                    onChange={(e) => {
-                      updateFormData("clientName", e.target.value);
-                      // Also update patient name if it's empty since they're the same person
-                      if (!formData.patientName) {
-                        updateFormData("patientName", e.target.value);
-                      }
-                    }}
+                    onChange={(e) =>
+                      updateFormData("clientName", e.target.value)
+                    }
                     placeholder="Full name of client"
                   />
                 </div>
@@ -1025,7 +1125,7 @@ export const SOCForm: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyMrNumber">MR #</Label>
+                  <Label htmlFor="emergencyMrNumber">MRN</Label>
                   <Input
                     id="emergencyMrNumber"
                     value={formData.emergencyMrNumber}
@@ -1278,14 +1378,11 @@ export const SOCForm: React.FC = () => {
 
               <DigitalSignature
                 title="Client Signature"
-                onSignatureChange={(signature) => {
-                  updateFormData("clientSignature", signature);
-                  // Also update patient signature since they're the same person
-                  if (!formData.patientSignature) {
-                    updateFormData("patientSignature", signature);
-                  }
-                }}
+                onSignatureChange={(signature) =>
+                  updateFormData("clientSignature", signature)
+                }
                 prefillName={formData.clientName || formData.patientName}
+                prefillSignature={formData.clientSignature || formData.patientSignature}
                 required
               />
 
@@ -1309,6 +1406,7 @@ export const SOCForm: React.FC = () => {
                   updateFormData("clinicianSignature", signature)
                 }
                 prefillName={formData.clinicianName}
+                prefillSignature={formData.clinicianSignature}
                 required
               />
 
@@ -1328,7 +1426,6 @@ export const SOCForm: React.FC = () => {
             </div>
           </FormStep>
 
-          
           <FormStep isActive={currentStep === 9}>
             <div className="space-y-6">
               <div className="bg-muted/30 p-6 rounded-lg">
@@ -1348,6 +1445,7 @@ export const SOCForm: React.FC = () => {
                   updateFormData("dataConsentSignature", signature)
                 }
                 prefillName={formData.patientName}
+                prefillSignature={formData.patientSignature}
                 required
               />
             </div>
@@ -1489,13 +1587,12 @@ export const SOCForm: React.FC = () => {
           {/* Navigation */}
           <div className="flex justify-between items-center mt-8 pt-6 border-t">
             <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
               <Button variant="outline" onClick={saveProgress}>
                 <Save className="h-4 w-4 mr-2" />
                 Save Progress
-              </Button>
-              <Button variant="secondary" onClick={exportJSON}>
-                <Download className="h-4 w-4 mr-2" />
-                Export JSON
               </Button>
             </div>
 
@@ -1508,26 +1605,24 @@ export const SOCForm: React.FC = () => {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Previous
               </Button>
-              <div onClick={nextStep}>
-                {currentStep === steps.length ? (
-                  <Button
-                    variant="wizard"
-                    onClick={handleGeneratePDF}
-                    disabled={isGeneratingPDF}
-                    className="flex items-center gap-2"
-                  >
-                    {isGeneratingPDF && (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    )}
-                    {isEditMode ? "Update Document" : "Generate PDF"}
-                  </Button>
-                ) : (
-                  <Button variant="default" onClick={nextStep}>
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
-                )}
-              </div>
+              {currentStep === steps.length ? (
+                <Button
+                  variant="wizard"
+                  onClick={handleGeneratePDF}
+                  disabled={isGeneratingPDF}
+                  className="flex items-center gap-2"
+                >
+                  {isGeneratingPDF && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  {isEditMode ? "Update Document" : "Generate PDF"}
+                </Button>
+              ) : (
+                <Button variant="default" onClick={nextStep}>
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              )}
             </div>
           </div>
         </div>

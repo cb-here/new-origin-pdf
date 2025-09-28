@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,11 +10,14 @@ import {
 import {
   FileText,
   FileX,
-  Clock,
   Users,
   CheckCircle,
   FileSignature,
+  MessageSquare,
 } from "lucide-react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { SplitText } from "gsap/all";
 
 const FormSelection = () => {
   const forms = [
@@ -74,8 +76,55 @@ const FormSelection = () => {
     },
   ];
 
+  useGSAP(() => {
+    const tl = gsap.timeline({
+      defaults: {
+        ease: "power2.out",
+      },
+    });
+    const titleSplit = new SplitText(".title", { type: "chars, words" });
+    const paraSplit = new SplitText(".para", { type: "lines" });
+
+    tl.from(titleSplit.chars, {
+      opacity: 0,
+      y: 20,
+      duration: 0.3,
+      stagger: 0.02,
+    });
+
+    tl.from(
+      paraSplit.lines,
+      {
+        opacity: 0,
+        y: 30,
+        duration: 0.8,
+        stagger: 0.03,
+      },
+      "-=0.2"
+    );
+    tl.fromTo(
+      ".form-card",
+      {
+        opacity: 0,
+        y: 20,
+      },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        stagger: 0.01,
+      },
+      "-=0.1"
+    );
+
+    return () => {
+      titleSplit.revert();
+      paraSplit.revert();
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="main-container min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 form-container">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
@@ -83,10 +132,10 @@ const FormSelection = () => {
               <FileText className="w-8 h-8 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="title text-4xl font-bold text-gray-900 mb-4">
             Form Selection Center
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="para text-lg text-gray-600 max-w-2xl mx-auto">
             Choose the appropriate form type for your documentation needs. Each
             form is designed for specific healthcare administration
             requirements.
@@ -94,14 +143,16 @@ const FormSelection = () => {
         </div>
 
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div id="main-grid" className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {forms.map((form) => {
               const IconComponent = form.icon;
               return (
                 <Card
                   key={form.id}
-                  className={`group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden ${
-                    form.id === "patient-consent" ? "lg:col-span-2 lg:max-w-2xl lg:mx-auto" : ""
+                  className={`form-card group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden ${
+                    form.id === "patient-consent"
+                      ? "lg:col-span-2 lg:max-w-2xl lg:mx-auto"
+                      : ""
                   }`}
                 >
                   <div className={`h-2 bg-gradient-to-r ${form.color}`} />
@@ -153,24 +204,61 @@ const FormSelection = () => {
             })}
           </div>
 
-          <div className="mt-12 text-center">
-            <Card className="max-w-2xl mx-auto bg-muted/30">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-muted-foreground" />
+          <div className="mt-20 md:px-4 px-0">
+            <div className="max-w-4xl mx-auto">
+              <div className="relative bg-gradient-to-br from-white via-blue-50 to-indigo-100 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-200 dark:bg-blue-900 rounded-full opacity-20 blur-xl"></div>
+                <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-32 h-32 bg-indigo-200 dark:bg-indigo-900 rounded-full opacity-30 blur-lg"></div>
+
+                <div className="relative z-10 p-8 md:p-12">
+                  <div className="flex flex-col md:flex-row items-center gap-8">
+                    <div className="flex-shrink-0">
+                      <div className="relative">
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3">
+                          <Users className="w-10 h-10 text-white" />
+                        </div>
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white dark:border-gray-800"></div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 text-center md:text-left">
+                      <h3 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-4 tracking-tight">
+                        Need Help Choosing the Right Form?
+                      </h3>
+
+                      <div className="space-y-4 mb-6">
+                        <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+                          <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">
+                            <strong className="font-semibold text-blue-600 dark:text-blue-400">
+                              E-SOC Packets
+                            </strong>
+                          </span>{" "}
+                          for new patient admissions and ongoing care
+                          documentation
+                        </p>
+
+                        <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+                          <span className="inline-flex items-center gap-1 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-lg">
+                            <strong className="font-semibold text-purple-600 dark:text-purple-400">
+                              NOMNC Forms
+                            </strong>
+                          </span>{" "}
+                          when Medicare coverage is ending and patients need
+                          official notice
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                        <Button className="group bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 border-0">
+                          <MessageSquare className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                          Contact Support
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-semibold mb-2">Need Help Choosing?</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Use <strong>E-SOC Packets</strong> for new patient admissions
-                  and ongoing care documentation. Use{" "}
-                  <strong>NOMNC Forms</strong> when Medicare coverage is ending
-                  and patients need official notice.
-                </p>
-                <Button variant="outline" size="sm">
-                  Contact Support
-                </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </div>

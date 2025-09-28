@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { SOCForm } from "@/components/SOCForm";
 import {
-  Card, CardDescription,
+  Card,
+  CardDescription,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, File } from "lucide-react";
@@ -15,15 +16,19 @@ const Index = () => {
   const [mode, setMode] = useState<"single" | "bulk" | "dashboard">("single");
 
   useEffect(() => {
-    // Switch to single tab when edit mode is triggered from Documents
     if (location.state?.editMode) {
       setMode("single");
+      window.history.replaceState({}, document.title);
+    }
+    if (location.state?.activeTab) {
+      setMode(location.state.activeTab);
+      window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 pt-16">
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className=" px-4 pt-16">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">SOC Forms</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">

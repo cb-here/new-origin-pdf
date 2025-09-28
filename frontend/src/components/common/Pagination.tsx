@@ -1,4 +1,5 @@
 import React from "react";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
 type PaginationProps = {
   currentPage: number;
@@ -25,7 +26,8 @@ const Pagination: React.FC<PaginationProps> = ({
           currentPage === page
             ? "text-white bg-green-500 hover:bg-green-600"
             : "text-gray-700 hover:bg-green-500 hover:text-white dark:text-gray-400 dark:hover:text-white"
-        }`}>
+        }`}
+      >
         {page}
       </button>
     </li>
@@ -77,8 +79,9 @@ const Pagination: React.FC<PaginationProps> = ({
         type="button"
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 sm:px-3.5 sm:py-2.5 disabled:opacity-50 disabled:cursor-not-allowed">
-        <span className="inline sm:hidden">←</span>
+        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 sm:px-3.5 sm:py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <ArrowLeftIcon className="w-5 h-5 sm:w-4 sm:h-4" />
         <span className="hidden sm:inline">Previous</span>
       </button>
 
@@ -88,18 +91,17 @@ const Pagination: React.FC<PaginationProps> = ({
       </span>
 
       {/* Page Numbers for Desktop */}
-      <ul className="hidden items-center gap-0.5 sm:flex">
-        {renderPageNumbers()}
-      </ul>
+      <ul className="hidden items-center gap-0.5 sm:flex">{renderPageNumbers()}</ul>
 
       {/* Next Button */}
       <button
         type="button"
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 sm:px-3.5 sm:py-2.5 disabled:opacity-50 disabled:cursor-not-allowed">
+        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 sm:px-3.5 sm:py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
         <span className="hidden sm:inline">Next</span>
-        <span className="inline sm:hidden">→</span>
+        <ArrowRightIcon className="w-5 h-5 sm:w-4 sm:h-4" />
       </button>
     </div>
   );

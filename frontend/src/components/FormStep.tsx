@@ -11,7 +11,7 @@ export const FormStep: React.FC<FormStepProps> = ({ children, isActive }) => {
 
   return (
     <div className="w-full">
-      <Card className="shadow-elegant border-0 bg-gradient-subtle">
+      <Card className="shadow-elegant border-0 bg-gradient-subtle p-0 md:p-4">
         <CardContent>{children}</CardContent>
       </Card>
     </div>

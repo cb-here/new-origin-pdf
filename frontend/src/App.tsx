@@ -11,6 +11,10 @@ import NOMNC from "./pages/NOMNC";
 import FormSelection from "./pages/FormSelection";
 import PatientConsent from "./pages/PatientConsent";
 import NotFound from "./pages/NotFound";
+import { ScrollTrigger, SplitText } from "gsap/all";
+import gsap from "gsap";
+
+gsap.registerPlugin(ScrollTrigger, SplitText)
 
 const queryClient = new QueryClient();
 

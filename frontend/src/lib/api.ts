@@ -199,11 +199,9 @@ export async function generatePDF(
   skipSave: boolean = false
 ) {
   try {
-    // Only transform data when saving (creating new document)
-    // When downloading, use the data as-is since it's already in the correct format
-    const payload = skipSave
-      ? { patientData: formData, medicationRows: [] }
-      : transformFormDataToBackend(formData);
+    // Always transform data to ensure proper field mapping for PDF generation
+    const transformedData = transformFormDataToBackend(formData);
+    const payload = transformedData;
 
     const apiUrl = `${API_BASE_URL}/pdf/generate${
       skipSave ? "?skipSave=true" : ""

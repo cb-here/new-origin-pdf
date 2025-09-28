@@ -1,17 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
+  Card, CardDescription,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Home, Users, File, RefreshCw } from "lucide-react";
+import { FileText, Users, File, RefreshCw } from "lucide-react";
 import PatientConsentForm from "@/components/PatientConsentForm";
-import PatientConsentCSVUpload from "@/components/PatientConsentCSVUpload";
 import { cleanParams } from "@/utils/cleanParams";
 import CommonTable from "@/components/common/ReusableTable";
 import TableFooter from "@/components/common/TableFooter";
@@ -203,7 +199,7 @@ const PatientConsent = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 pt-16">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Patient Consent</h1>
@@ -217,7 +213,6 @@ const PatientConsent = () => {
           <Tabs
             value={mode}
             onValueChange={(v) => {
-              // Clear editing state when switching to single form tab
               if (v === "single" && isEditMode) {
                 setEditingForm(null);
                 setIsEditMode(false);
@@ -228,18 +223,18 @@ const PatientConsent = () => {
           >
             <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
               <TabsTrigger value="single" className="flex items-center gap-2">
-                <File className="w-4 h-4" />
+                <File className="hidden md:inline w-4 h-4" />
                 Single Form
               </TabsTrigger>
               <TabsTrigger value="bulk" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
+                <Users className="hidden md:inline w-4 h-4" />
                 Bulk Creation
               </TabsTrigger>
               <TabsTrigger
                 value="dashboard"
                 className="flex items-center gap-2"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="hidden md:inline w-4 h-4" />
                 Dashboard
               </TabsTrigger>
             </TabsList>
@@ -247,8 +242,8 @@ const PatientConsent = () => {
             <TabsContent value="single" className="mt-8">
               <Card className="mb-6">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <File className="w-5 h-5" />
+                  <CardTitle className="flex md:items-center items-start gap-2">
+                    <File className="w-5 h-5 flex-shrink-0 md:mt-0 mt-1" />
                     Single Patient Consent Form
                   </CardTitle>
                   <CardDescription>
@@ -312,7 +307,9 @@ const PatientConsent = () => {
                       disabled={loading}
                       className="flex items-center gap-2 h-11"
                     >
-                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                      <RefreshCw
+                        className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                      />
                       Refresh
                     </Button>
                     <Search

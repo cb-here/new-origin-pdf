@@ -24,7 +24,7 @@ export default function Search({
   return (
     <div className={`relative w-full ${className}`}>
       {/* Search Icon */}
-      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
+      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400 transition-colors duration-200 group-focus-within:text-primary">
         <svg
           className="w-5 h-5"
           viewBox="0 0 20 20"
@@ -46,7 +46,7 @@ export default function Search({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className="h-11 w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pl-10 pr-12 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-primary box-border"
+        className="h-11 w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pl-10 pr-12 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-primary focus:bg-white/5 focus:ring-4 focus:ring-primary/30 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-primary dark:focus:bg-gray-800/50 dark:focus:ring-primary/30 transition-all duration-200 group-focus-within:scale-[1.01] box-border"
       />
 
       {/* Clear (X) Button */}
@@ -54,7 +54,7 @@ export default function Search({
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
           aria-label="Clear search"
         >
           <X className="w-5 h-5" />

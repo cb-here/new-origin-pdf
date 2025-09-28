@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import Search from "@/components/common/SearchInput";
 import CommonTable from "@/components/common/ReusableTable";
 import { FiDownload, FiEdit } from "react-icons/fi";
+import { cleanParams } from "@/utils/cleanParams";
 
 const Documents = () => {
   const headers = [
@@ -166,11 +167,13 @@ const Documents = () => {
   }) => {
     setLoading(true);
     try {
-      const res = await fetchUsers({
-        page: params?.page ?? documentParams.page,
-        limit: params?.limit ?? documentParams.limit,
-        search: params?.search ?? documentParams.search,
-      });
+      const res = await fetchUsers(
+        cleanParams({
+          page: params?.page ?? documentParams.page,
+          limit: params?.limit ?? documentParams.limit,
+          search: params?.search ?? documentParams.search,
+        })
+      );
       setDocumentData(res);
     } catch (err) {
       console.error("Failed to fetch users:", err);
@@ -225,7 +228,9 @@ const Documents = () => {
         id: `download-${doc._id}`,
       });
 
-      await generatePDF(doc, doc.patientName || "Patient", true);
+      const formattedData = await fetchDocumentForEdit(doc._id);
+
+      await generatePDF(formattedData, doc.patientName || "Patient", true);
 
       toast.success(`Document downloaded successfully!`, {
         id: `download-${doc._id}`,
@@ -241,7 +246,6 @@ const Documents = () => {
   };
 
   const handleEdit = async (doc) => {
-    console.log(`Editing document for ${doc.patientName} (ID: ${doc._id})`);
     setEditingId(doc._id);
 
     try {
@@ -272,7 +276,7 @@ const Documents = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background rounded-lg">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-7xl mx-auto">
         <Card>
           <CardContent>
@@ -295,7 +299,7 @@ const Documents = () => {
                   size="sm"
                   onClick={() => getUsers()}
                   disabled={loading}
-                  className="flex items-center gap-2 h-11 w-full s:w-full auto"
+                  className="flex items-center gap-2 h-11"
                 >
                   <RefreshCw
                     className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
@@ -303,7 +307,7 @@ const Documents = () => {
                   Refresh
                 </Button>
                 <Search
-                  className="w-auto sm:w-[336px]"
+                  className="w-full sm:w-[336px]"
                   value={documentParams?.search}
                   onChange={handleSearch}
                 />

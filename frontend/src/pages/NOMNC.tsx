@@ -231,7 +231,6 @@ const NOMNC = () => {
           <Tabs
             value={mode}
             onValueChange={(value) => {
-              // Clear editing state when switching to single form tab
               if (value === "single" && isEditMode) {
                 setEditingForm(null);
                 setIsEditMode(false);
