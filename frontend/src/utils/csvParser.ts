@@ -84,7 +84,7 @@ export const generateCSVTemplate = (): string => {
     'John Doe',
     '12/31/2024',
     'Home Health Care',
-    'ABC Health Plan, 555-0123, support@abchealth.com',
+    'ABC Health Plan 555-0123 support@abchealth.com',
     'Additional notes here',
     'John Doe',
     '12/15/2024'

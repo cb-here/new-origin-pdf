@@ -65,7 +65,7 @@ const Navbar = () => {
     { href: "/", label: "Home", icon: Home },
     { href: "/esoc", label: "E-SOC", icon: FileText },
     { href: "/nomnc", label: "NOMNC", icon: FileX },
-    { href: "/patient-consent", label: "Consent", icon: FileSignature },
+    { href: "/patient-consent", label: "CSA", icon: FileSignature },
   ];
 
   const isActive = (href) => {

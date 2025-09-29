@@ -42,6 +42,7 @@ interface FormData {
   patientName: string;
   mrn: string;
   soc: string;
+  roc: string;
   certificationStart: string;
   certificationEnd: string;
   disciplineFrequencies: DisciplineFrequency[];
@@ -84,6 +85,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
     patientName: "",
     mrn: "",
     soc: "",
+    roc: "",
     certificationStart: "",
     certificationEnd: "",
     disciplineFrequencies: Array(6)
@@ -96,6 +98,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
     startMonth: "",
     endMonth: "",
   });
+  console.log("🚀 ~ PatientConsentForm ~ formData:", formData)
 
   const updateFormData = (field: keyof FormData, value: string) => {
     setFormData((prev) => {
@@ -114,6 +117,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
       patientName: "",
       mrn: "",
       soc: "",
+      roc: "",
       certificationStart: "",
       certificationEnd: "",
       disciplineFrequencies: Array(6)
@@ -146,6 +150,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
         patientName: editingForm.patientName || "",
         mrn: editingForm.mrn || "",
         soc: editingForm.soc || "",
+        roc: editingForm.roc || "",
         certificationStart: editingForm.certificationStart || "",
         certificationEnd: editingForm.certificationEnd || "",
         disciplineFrequencies:
@@ -234,6 +239,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
       "patientName",
       "mrn",
       "soc",
+      "roc",
       "certificationStart",
       "certificationEnd",
       "patientSignature",
@@ -340,7 +346,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="soc">SOC (Start of Care) *</Label>
                         <Input
@@ -349,6 +355,18 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
                           value={formData.soc}
                           onChange={(e) =>
                             updateFormData("soc", e.target.value)
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="roc">RECET/ROC Date *</Label>
+                        <Input
+                          id="roc"
+                          type="date"
+                          value={formData.roc}
+                          onChange={(e) =>
+                            updateFormData("roc", e.target.value)
                           }
                           required
                         />

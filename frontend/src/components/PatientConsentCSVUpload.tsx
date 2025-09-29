@@ -8,7 +8,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Upload,
@@ -25,6 +32,7 @@ interface CSVRow {
   patientName: string;
   mrn: string;
   soc: string;
+  roc: string;
   certificationStart: string;
   certificationEnd: string;
   startMonth: string;
@@ -42,9 +50,7 @@ interface CSVRow {
   discipline6?: string;
   newFrequency6?: string;
   patientSignature: string;
-  patientSignatureDate: string;
   agencyRepSignature: string;
-  agencyRepDate: string;
 }
 
 interface CSVParseResult {
@@ -71,7 +77,7 @@ interface CSVUploadProps {
 const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
   onDataParsed,
 }) => {
-  const [csvText, setCsvText] = useState('');
+  const [csvText, setCsvText] = useState("");
   const [parseResult, setParseResult] = useState<CSVParseResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [isGeneratingPDFs, setIsGeneratingPDFs] = useState(false);
@@ -82,10 +88,14 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
       "patientName",
       "mrn",
       "soc",
+      "roc",
       "certificationStart",
       "certificationEnd",
       "startMonth",
       "endMonth",
+
+      "patientSignature",
+      "agencyRepSignature",
       "discipline1",
       "newFrequency1",
       "discipline2",
@@ -98,16 +108,13 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
       "newFrequency5",
       "discipline6",
       "newFrequency6",
-      "patientSignature",
-      "patientSignatureDate",
-      "agencyRepSignature",
-      "agencyRepDate",
     ];
 
     const sampleData = [
       "John Doe",
       "123456",
       "2024-01-01",
+      "2025-01-09",
       "2024-01-01",
       "2024-03-31",
       "01",
@@ -118,16 +125,14 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
       "2x/week",
       "Speech Therapy",
       "1x/week",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
       "John Doe",
-      "2024-01-01",
       "Agency Representative",
-      "2024-01-01",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
     ];
 
     return [headers.join(","), sampleData.join(",")].join("\n");
@@ -138,10 +143,10 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
     try {
       await navigator.clipboard.writeText(template);
       setCopied(true);
-      toast.success('CSV template copied to clipboard');
+      toast.success("CSV template copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      toast.error('Failed to copy template');
+      toast.error("Failed to copy template");
     }
   };
 
@@ -164,18 +169,31 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
     const data: CSVRow[] = [];
 
     if (!text.trim()) {
-      return { data, errors: ['CSV text is empty'] };
+      return { data, errors: ["CSV text is empty"] };
     }
 
     try {
-      const lines = text.trim().split('\n');
+      const lines = text.trim().split("\n");
       if (lines.length < 2) {
-        errors.push('CSV must have at least a header row and one data row');
+        errors.push("CSV must have at least a header row and one data row");
         return { data, errors };
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const requiredHeaders = ['patientName', 'mrn', 'soc', 'certificationStart', 'certificationEnd', 'startMonth', 'endMonth', 'patientSignature', 'agencyRepSignature'];
+      const headers = lines[0]
+        .split(",")
+        .map((h) => h.trim().replace(/^"|"$/g, ""));
+      const requiredHeaders = [
+        "patientName",
+        "mrn",
+        "soc",
+        "roc",
+        "certificationStart",
+        "certificationEnd",
+        "startMonth",
+        "endMonth",
+        "patientSignature",
+        "agencyRepSignature",
+      ];
 
       // Check for required headers
       for (const required of requiredHeaders) {
@@ -193,11 +211,13 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
         const line = lines[i].trim();
         if (!line) continue;
 
-        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const values = line
+          .split(",")
+          .map((v) => v.trim().replace(/^"|"$/g, ""));
         const row: any = {};
 
         headers.forEach((header, index) => {
-          row[header] = values[index] || '';
+          row[header] = values[index] || "";
         });
 
         // Validate required fields
@@ -206,6 +226,9 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
         }
         if (!row.mrn) {
           errors.push(`Row ${i}: MRN is required`);
+        }
+        if (!row.roc) {
+          errors.push(`Row ${i}: ROC Date is required`);
         }
         if (!row.startMonth) {
           errors.push(`Row ${i}: Start month is required`);
@@ -222,7 +245,6 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
 
         data.push(row as CSVRow);
       }
-
     } catch (error) {
       errors.push(`Error parsing CSV: ${error.message}`);
     }
@@ -234,8 +256,8 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-      toast.error('Please upload a CSV file');
+    if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+      toast.error("Please upload a CSV file");
       return;
     }
 
@@ -267,7 +289,7 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
   const handleProcessData = () => {
     if (parseResult && parseResult.errors.length === 0) {
       onDataParsed(parseResult.data);
-      toast.success('CSV data processed successfully');
+      toast.success("CSV data processed successfully");
     }
   };
 
@@ -299,15 +321,14 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
           patientName: row.patientName,
           mrn: row.mrn,
           soc: row.soc,
+          roc: row.roc,
           certificationStart: row.certificationStart,
           certificationEnd: row.certificationEnd,
           startMonth: row.startMonth,
           endMonth: row.endMonth,
           disciplineFrequencies,
           patientSignature: row.patientSignature,
-          patientSignatureDate: row.patientSignatureDate,
           agencyRepSignature: row.agencyRepSignature,
-          agencyRepDate: row.agencyRepDate,
         };
       });
 
@@ -318,7 +339,7 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
       );
 
       // Clear the data after successful generation
-      setCsvText('');
+      setCsvText("");
       setParseResult(null);
     } catch (error) {
       console.error("Error generating bulk PDFs:", error);
@@ -334,7 +355,8 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
         <CardHeader>
           <CardTitle>CSV Upload for Bulk Patient Consent Forms</CardTitle>
           <CardDescription>
-            Upload or paste CSV data to create multiple Patient Consent forms at once
+            Upload or paste CSV data to create multiple Patient Consent forms at
+            once
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -344,8 +366,12 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
               onClick={handleCopyTemplate}
               className="flex items-center gap-2"
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Template'}
+              {copied ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+              {copied ? "Copied!" : "Copy Template"}
             </Button>
             <Button
               variant="outline"
@@ -387,9 +413,7 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={() => handleParseCSV()}>
-              Parse CSV Data
-            </Button>
+            <Button onClick={() => handleParseCSV()}>Parse CSV Data</Button>
             {parseResult && parseResult.errors.length === 0 && (
               <Button onClick={handleProcessData} className="bg-primary">
                 Process {parseResult.data.length} Forms
@@ -410,7 +434,9 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
                   <div className="space-y-1">
-                    <p className="font-medium">Found {parseResult.errors.length} errors:</p>
+                    <p className="font-medium">
+                      Found {parseResult.errors.length} errors:
+                    </p>
                     <ul className="list-disc list-inside text-sm">
                       {parseResult.errors.map((error, index) => (
                         <li key={index}>{error}</li>
@@ -424,7 +450,9 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
             {parseResult.data.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Parsed Data ({parseResult.data.length} rows):</h4>
+                  <h4 className="font-medium">
+                    Parsed Data ({parseResult.data.length} rows):
+                  </h4>
                   <Button
                     onClick={handleBulkPDFGeneration}
                     disabled={isGeneratingPDFs}
@@ -447,33 +475,77 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className='whitespace-nowrap'>Patient Name</TableHead>
-                        <TableHead className='whitespace-nowrap'>MRN</TableHead>
-                        <TableHead className='whitespace-nowrap'>SOC</TableHead>
-                        <TableHead className='whitespace-nowrap'>Cert Start</TableHead>
-                        <TableHead className='whitespace-nowrap'>Cert End</TableHead>
-                        <TableHead className='whitespace-nowrap'>Start Month</TableHead>
-                        <TableHead className='whitespace-nowrap'>End Month</TableHead>
-                        <TableHead className='whitespace-nowrap'>Discipline 1</TableHead>
-                        <TableHead className='whitespace-nowrap'>Frequency 1</TableHead>
-                        <TableHead className='whitespace-nowrap'>Patient Signature</TableHead>
-                        <TableHead className='whitespace-nowrap'>Agency Signature</TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Patient Name
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">MRN</TableHead>
+                        <TableHead className="whitespace-nowrap">SOC</TableHead>
+                        <TableHead className="whitespace-nowrap">ROC</TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Cert Start
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Cert End
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Start Month
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          End Month
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Discipline 1
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Frequency 1
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Patient Signature
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Agency Signature
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {parseResult.data.map((row, index) => (
                         <TableRow key={index}>
-                          <TableCell className='whitespace-nowrap'>{row.patientName}</TableCell>
-                          <TableCell className="font-mono text-sm whitespace-nowrap">{row.mrn}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.soc}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.certificationStart}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.certificationEnd}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.startMonth}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.endMonth}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.discipline1 || '-'}</TableCell>
-                          <TableCell className='whitespace-nowrap'>{row.newFrequency1 || '-'}</TableCell>
-                          <TableCell className='whitespace-nowrap max-w-32 truncate'>{row.patientSignature}</TableCell>
-                          <TableCell className='whitespace-nowrap max-w-32 truncate'>{row.agencyRepSignature}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.patientName}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm whitespace-nowrap">
+                            {row.mrn}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.soc}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.roc}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.certificationStart}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.certificationEnd}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.startMonth}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.endMonth}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.discipline1 || "-"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {row.newFrequency1 || "-"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap max-w-32 truncate">
+                            {row.patientSignature}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap max-w-32 truncate">
+                            {row.agencyRepSignature}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
