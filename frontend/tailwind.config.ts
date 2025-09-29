@@ -59,9 +59,9 @@ export default {
         },
       },
       fontFamily: {
-        'signature': ['Dancing Script', 'cursive'],
-        'signature-elegant': ['Great Vibes', 'cursive'],
-        'signature-formal': ['Allura', 'cursive'],
+        'signature': ['Homemade Apple', 'cursive'],
+        'signature-elegant': ['Homemade Apple', 'cursive'],
+        'signature-formal': ['Homemade Apple', 'cursive'],
       },
       borderRadius: {
         lg: "var(--radius)",

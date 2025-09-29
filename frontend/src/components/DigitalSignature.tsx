@@ -112,7 +112,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Set signature style with professional signature font
-        ctx.font = '36px "Dancing Script", cursive';
+        ctx.font = '25px "Homemade Apple", cursive';
         ctx.fillStyle = 'hsl(var(--signature-stroke))';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -249,7 +249,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Set signature style with professional signature font
-    ctx.font = '36px "Dancing Script", cursive';
+    ctx.font = '25px "Homemade Apple", cursive';
     ctx.fillStyle = 'hsl(var(--signature-stroke))';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
