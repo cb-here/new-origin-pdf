@@ -99,7 +99,9 @@ export interface FormData {
   mdtOasisDate: string;
   medications: Array<{
     name: string;
+    medicationName?: string;
     causes: string;
+    cause?: string;
     resolution: string;
   }>;
 }

@@ -168,6 +168,7 @@ export const SOCForm: React.FC = () => {
     mdtOasisDate: "",
     medications: [],
   });
+  console.log("🚀 ~ SOCForm ~ formData:", formData)
 
   const updateFormData = (field: keyof FormData, value) => {
     setFormData((prev) => ({
@@ -1544,7 +1545,7 @@ export const SOCForm: React.FC = () => {
                       <div className="space-y-2">
                         <Label>Medication Name</Label>
                         <Input
-                          value={medication.name}
+                          value={medication.medicationName}
                           onChange={(e) => {
                             const newMedications = [...formData.medications];
                             newMedications[index].name = e.target.value;
@@ -1556,7 +1557,7 @@ export const SOCForm: React.FC = () => {
                       <div className="space-y-2">
                         <Label>Causes & Contributing Factors</Label>
                         <Input
-                          value={medication.causes}
+                          value={medication.cause}
                           onChange={(e) => {
                             const newMedications = [...formData.medications];
                             newMedications[index].causes = e.target.value;
