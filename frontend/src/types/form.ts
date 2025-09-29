@@ -10,8 +10,8 @@ export interface FormData {
   patientName: string;
   mrNumber: string;
   socDate: string;
-  referralSourceStartDate: string;
-  referralSourceEndDate: string;
+  referralSourceDate: string;
+  referralComment: string;
   agencyName: string;
   reasonForServices: string;
   certificationStart: string;

@@ -15,13 +15,7 @@ import {
 } from "@/components/ui/select";
 import { SidebarNavigation } from "./SidebarNavigation";
 import { FormStep } from "./FormStep";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Save,
-  Plus,
-  Minus,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import {
   generatePDF,
@@ -97,14 +91,14 @@ export const SOCForm: React.FC = () => {
     patientName: "",
     mrNumber: "",
     socDate: "",
-    referralSourceStartDate: "",
-    referralSourceEndDate: "",
+    referralSourceDate: "",
+    referralComment: "",
     agencyName: "Genesis Healthcare DBA Origin Home Health Care",
     reasonForServices: "",
     certificationStart: "",
     certificationEnd: "",
     payerForServices: "",
-    hmoMembership: "",
+    hmoMembership: "participating",
     billingMethod: "",
     insuranceAmounts: "",
     billingPercentage: "",
@@ -118,11 +112,11 @@ export const SOCForm: React.FC = () => {
       { service: "Medical Social Worker", frequencyDuration: "" },
       { service: "Other", frequencyDuration: "" },
     ],
-    advanceDirective: "",
-    photographyPermission: "",
-    fundsAuthorization: "",
+    advanceDirective: "not-prepared",
+    photographyPermission: "allow",
+    fundsAuthorization: "not-authorize",
     fundsInitials: "",
-    vehicleAuthorization: "",
+    vehicleAuthorization: "not-authorize",
     vehicleInitials: "",
     patientSignature: "",
     relationshipToPatient: "",
@@ -168,7 +162,6 @@ export const SOCForm: React.FC = () => {
     mdtOasisDate: "",
     medications: [],
   });
-  console.log("🚀 ~ SOCForm ~ formData:", formData)
 
   const updateFormData = (field: keyof FormData, value) => {
     setFormData((prev) => ({
@@ -216,11 +209,22 @@ export const SOCForm: React.FC = () => {
     }
   }, []);
 
+  // Helper function to generate initials from full name
+  const generateInitials = (fullName: string) => {
+    if (!fullName) return "";
+
+    const names = fullName.trim().split(/\s+/);
+    return names
+      .filter((name) => name.length > 0)
+      .map((name) => name.charAt(0).toUpperCase())
+      .join("");
+  };
+
   // Single effect to handle all field synchronization - prevents infinite loops
   useEffect(() => {
     const updates: Partial<FormData> = {};
 
-    // Sync patient names
+    // Sync patient names and generate initials
     if (formData.patientName) {
       if (formData.billOfRightsPatientName !== formData.patientName) {
         updates.billOfRightsPatientName = formData.patientName;
@@ -231,6 +235,9 @@ export const SOCForm: React.FC = () => {
       if (formData.mdtPatient !== formData.patientName) {
         updates.mdtPatient = formData.patientName;
       }
+
+      // Note: Client initials are now handled by DigitalSignature components
+      // They will auto-generate signatures based on the initials
     } else if (formData.clientName && !formData.patientName) {
       // If patient name is empty but client name exists, use client name
       updates.patientName = formData.clientName;
@@ -240,6 +247,9 @@ export const SOCForm: React.FC = () => {
       if (formData.mdtPatient !== formData.clientName) {
         updates.mdtPatient = formData.clientName;
       }
+
+      // Note: Client initials are now handled by DigitalSignature components
+      // They will auto-generate signatures based on the initials
     }
 
     // Sync MR numbers
@@ -250,14 +260,23 @@ export const SOCForm: React.FC = () => {
     }
 
     // Sync allergies
-    if (formData.allergies && formData.emergencyAllergies !== formData.allergies) {
+    if (
+      formData.allergies &&
+      formData.emergencyAllergies !== formData.allergies
+    ) {
       updates.emergencyAllergies = formData.allergies;
-    } else if (formData.emergencyAllergies && formData.allergies !== formData.emergencyAllergies) {
+    } else if (
+      formData.emergencyAllergies &&
+      formData.allergies !== formData.emergencyAllergies
+    ) {
       updates.allergies = formData.emergencyAllergies;
     }
 
     // Sync signatures
-    if (formData.patientSignature && formData.clientSignature !== formData.patientSignature) {
+    if (
+      formData.patientSignature &&
+      formData.clientSignature !== formData.patientSignature
+    ) {
       updates.clientSignature = formData.patientSignature;
     } else if (formData.clientSignature && !formData.patientSignature) {
       updates.patientSignature = formData.clientSignature;
@@ -265,7 +284,7 @@ export const SOCForm: React.FC = () => {
 
     // Apply all updates at once to prevent multiple re-renders
     if (Object.keys(updates).length > 0) {
-      setFormData(prev => ({ ...prev, ...updates }));
+      setFormData((prev) => ({ ...prev, ...updates }));
     }
   }, [
     formData.patientName,
@@ -277,7 +296,7 @@ export const SOCForm: React.FC = () => {
     formData.allergies,
     formData.emergencyAllergies,
     formData.patientSignature,
-    formData.clientSignature
+    formData.clientSignature,
   ]);
 
   const saveProgress = async () => {
@@ -419,8 +438,8 @@ export const SOCForm: React.FC = () => {
       patientName: "",
       mrNumber: "",
       socDate: "",
-      referralSourceStartDate: "",
-      referralSourceEndDate: "",
+      referralSourceDate: "",
+      referralComment: "",
       agencyName: "Genesis Healthcare DBA Origin Home Health Care",
       reasonForServices: "",
       certificationStart: "",
@@ -440,8 +459,8 @@ export const SOCForm: React.FC = () => {
       ],
       advanceDirective: "",
       photographyPermission: "",
-      fundsAuthorization: "",
-      fundsInitials: "",
+      fundsAuthorization: "not-authorize",
+      fundsInitials: "not-authorize",
       vehicleAuthorization: "",
       vehicleInitials: "",
       patientSignature: "",
@@ -601,34 +620,32 @@ export const SOCForm: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="referralSourceStartDate">
-                  Referral Source Date - Start
-                </Label>
+                <Label htmlFor="referralSourceDate">Referral Source Date</Label>
                 <Input
-                  id="referralSourceStartDate"
+                  id="referralSourceDate"
                   type="date"
-                  value={formData.referralSourceStartDate}
+                  value={formData.referralSourceDate}
                   onChange={(e) =>
-                    updateFormData("referralSourceStartDate", e.target.value)
+                    updateFormData("referralSourceDate", e.target.value)
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="referralSourceEndDate">
-                  Referral Source Date - End
-                </Label>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="referralComment">Referral Comments</Label>
                 <Input
-                  id="referralSourceEndDate"
-                  type="date"
-                  value={formData.referralSourceEndDate}
+                  id="referralComment"
+                  type="text"
+                  value={formData.referralComment}
+                  placeholder="Add refferal comment"
                   onChange={(e) =>
-                    updateFormData("referralSourceEndDate", e.target.value)
+                    updateFormData("referralComment", e.target.value)
                   }
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="agencyName">Agency Name</Label>
                 <Input
+                  disabled
                   id="agencyName"
                   value={formData.agencyName}
                   onChange={(e) => updateFormData("agencyName", e.target.value)}
@@ -638,6 +655,7 @@ export const SOCForm: React.FC = () => {
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="reasonForServices">Reason for Services</Label>
                 <Textarea
+                  disabled
                   id="reasonForServices"
                   value={formData.reasonForServices}
                   onChange={(e) =>
@@ -665,28 +683,22 @@ export const SOCForm: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="payerForServices">Payer for Services</Label>
-                <Select
+
+                <Input
+                  id="payerForServices"
+                  type="text"
+                  placeholder="Payer for Services"
                   value={formData.payerForServices}
-                  onValueChange={(value) =>
-                    updateFormData("payerForServices", value)
+                  onChange={(e) =>
+                    updateFormData("payerForServices", e.target.value)
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="medicare">Medicare</SelectItem>
-                    <SelectItem value="medicaid">Medicaid</SelectItem>
-                    <SelectItem value="insurance">Insurance</SelectItem>
-                    <SelectItem value="private">Private Pay</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="space-y-4">
                 <Label>HMO Membership</Label>
                 <RadioGroup
+                  disabled
                   value={formData.hmoMembership}
                   onValueChange={(value) =>
                     updateFormData("hmoMembership", value)
@@ -741,6 +753,7 @@ export const SOCForm: React.FC = () => {
                   Insurance - Anticipated Amounts per Visit
                 </Label>
                 <Input
+                  disabled
                   id="insuranceAmounts"
                   type="number"
                   value={formData.insuranceAmounts}
@@ -756,6 +769,7 @@ export const SOCForm: React.FC = () => {
                   Percentage Covered After Deductible
                 </Label>
                 <Input
+                  disabled
                   id="billingPercentage"
                   type="number"
                   value={formData.billingPercentage}
@@ -808,6 +822,7 @@ export const SOCForm: React.FC = () => {
               <div className="space-y-4">
                 <Label>Advance Directive</Label>
                 <RadioGroup
+                  disabled
                   value={formData.advanceDirective}
                   onValueChange={(value) =>
                     updateFormData("advanceDirective", value)
@@ -843,6 +858,7 @@ export const SOCForm: React.FC = () => {
               <div className="space-y-4">
                 <Label>Photography Permission</Label>
                 <RadioGroup
+                  disabled
                   value={formData.photographyPermission}
                   onValueChange={(value) =>
                     updateFormData("photographyPermission", value)
@@ -869,6 +885,7 @@ export const SOCForm: React.FC = () => {
                 <div className="space-y-4">
                   <Label>Authorization to Access Personal Funds</Label>
                   <RadioGroup
+                    disabled
                     value={formData.fundsAuthorization}
                     onValueChange={(value) =>
                       updateFormData("fundsAuthorization", value)
@@ -889,16 +906,17 @@ export const SOCForm: React.FC = () => {
                     </div>
                   </RadioGroup>
                   <div className="space-y-2">
-                    <Label htmlFor="fundsInitials">Client Initials</Label>
-                    <Input
-                      id="fundsInitials"
-                      value={formData.fundsInitials}
-                      onChange={(e) =>
-                        updateFormData("fundsInitials", e.target.value)
+                    <DigitalSignature
+                      title="Client Initials - Personal Funds"
+                      onSignatureChange={(signature) =>
+                        updateFormData("fundsInitials", signature)
                       }
-                      placeholder="Enter initials"
-                      maxLength={3}
-                      className="w-full"
+                      prefillName={generateInitials(
+                        formData.patientName || formData.clientName
+                      )}
+                      prefillSignature={formData.fundsInitials}
+                      allowTypedSignature={true}
+                      required
                     />
                   </div>
                 </div>
@@ -906,6 +924,7 @@ export const SOCForm: React.FC = () => {
                 <div className="space-y-4">
                   <Label>Authorization to Use Personal Vehicle</Label>
                   <RadioGroup
+                    disabled
                     value={formData.vehicleAuthorization}
                     onValueChange={(value) =>
                       updateFormData("vehicleAuthorization", value)
@@ -929,16 +948,17 @@ export const SOCForm: React.FC = () => {
                     </div>
                   </RadioGroup>
                   <div className="space-y-2">
-                    <Label htmlFor="vehicleInitials">Client Initials</Label>
-                    <Input
-                      id="vehicleInitials"
-                      value={formData.vehicleInitials}
-                      onChange={(e) =>
-                        updateFormData("vehicleInitials", e.target.value)
+                    <DigitalSignature
+                      title="Client Initials - Personal Vehicle"
+                      onSignatureChange={(signature) =>
+                        updateFormData("vehicleInitials", signature)
                       }
-                      placeholder="Enter initials"
-                      maxLength={3}
-                      className="w-full"
+                      prefillName={generateInitials(
+                        formData.patientName || formData.clientName
+                      )}
+                      prefillSignature={formData.vehicleInitials}
+                      allowTypedSignature={true}
+                      required
                     />
                   </div>
                 </div>
@@ -955,7 +975,7 @@ export const SOCForm: React.FC = () => {
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="relationshipToPatient">
                     Relationship to Patient
                   </Label>
@@ -967,7 +987,7 @@ export const SOCForm: React.FC = () => {
                     }
                     placeholder="e.g., self, spouse, guardian"
                   />
-                </div>
+                </div> */}
                 <div className="space-y-2">
                   <Label htmlFor="patientSignatureDate">Date</Label>
                   <Input
@@ -1383,7 +1403,9 @@ export const SOCForm: React.FC = () => {
                   updateFormData("clientSignature", signature)
                 }
                 prefillName={formData.clientName || formData.patientName}
-                prefillSignature={formData.clientSignature || formData.patientSignature}
+                prefillSignature={
+                  formData.clientSignature || formData.patientSignature
+                }
                 required
               />
 
@@ -1511,7 +1533,13 @@ export const SOCForm: React.FC = () => {
                     onClick={() => {
                       const newMedications = [
                         ...formData.medications,
-                        { name: "", causes: "", resolution: "" },
+                        {
+                          name: "",
+                          medicationName: "",
+                          causes: "",
+                          cause: "",
+                          resolution: ""
+                        },
                       ];
                       updateFormData("medications", newMedications);
                     }}
@@ -1545,10 +1573,11 @@ export const SOCForm: React.FC = () => {
                       <div className="space-y-2">
                         <Label>Medication Name</Label>
                         <Input
-                          value={medication.medicationName}
+                          value={medication.medicationName || medication.name || ""}
                           onChange={(e) => {
                             const newMedications = [...formData.medications];
-                            newMedications[index].name = e.target.value;
+                            newMedications[index].medicationName = e.target.value;
+                            newMedications[index].name = e.target.value; // Keep both for compatibility
                             updateFormData("medications", newMedications);
                           }}
                           placeholder="Enter medication name"
@@ -1557,10 +1586,11 @@ export const SOCForm: React.FC = () => {
                       <div className="space-y-2">
                         <Label>Causes & Contributing Factors</Label>
                         <Input
-                          value={medication.cause}
+                          value={medication.cause || medication.causes || ""}
                           onChange={(e) => {
                             const newMedications = [...formData.medications];
-                            newMedications[index].causes = e.target.value;
+                            newMedications[index].cause = e.target.value;
+                            newMedications[index].causes = e.target.value; // Keep both for compatibility
                             updateFormData("medications", newMedications);
                           }}
                           placeholder="Enter cause numbers (1-16)"

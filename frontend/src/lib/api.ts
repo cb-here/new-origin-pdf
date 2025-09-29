@@ -81,8 +81,8 @@ export function transformFormDataToBackend(formData) {
 
   // Transform medications to new format
   const transformedMedications = (formData.medications || []).map((med) => ({
-    medicationName: med.name || "",
-    cause: med.causes || "",
+    medicationName: med.medicationName || med.name || "",
+    cause: med.cause || med.causes || "",
     resolution: med.resolution || "",
   }));
 
@@ -99,30 +99,8 @@ export function transformFormDataToBackend(formData) {
     patientName: formData.patientName || "",
     mrn: formData.mrNumber || "",
     socDate: formData.socDate || "",
-    referralSourceDate: (() => {
-      const startDate = formData.referralSourceStartDate;
-      const endDate = formData.referralSourceEndDate;
-
-      if (startDate && endDate) {
-        const formatDate = (dateStr: string) => {
-          const date = new Date(dateStr);
-          return date.toLocaleDateString("en-US", {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-          });
-        };
-        return `${formatDate(startDate)} - ${formatDate(endDate)}`;
-      } else if (startDate) {
-        const date = new Date(startDate);
-        return date.toLocaleDateString("en-US", {
-          month: "2-digit",
-          day: "2-digit",
-          year: "numeric",
-        });
-      }
-      return "";
-    })(),
+    referralSourceDate: formData.referralSourceDate || "",
+    referralComment: formData.referralComment ? `- ${formData.referralComment}` : "",
     patientName2: formData.patientName || "", // Duplicate field
     agencyName: formData.agencyName || "",
     servicesPerception: formData.reasonForServices || "",

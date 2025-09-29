@@ -227,7 +227,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
       base64Data: signatureData,
       readableFormat: {
         type: 'image/png',
-        size: Math.round(signatureData.length * 0.75), // Approximate size in bytes
+        size: Math.round(signatureData.length * 0.75), 
         dimensions: `${canvas.width}x${canvas.height}`,
         hasContent: hasSignature
       }
