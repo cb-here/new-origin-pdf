@@ -387,8 +387,7 @@ const convertTextToSignature = (text: string): string => {
 
   // Signature styling
   ctx.fillStyle = "#1a1a1a"; // Slightly softer black
-  ctx.font =
-    "25px 'Homemade Apple', cursive";
+  ctx.font = "25px 'Homemade Apple', cursive";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
