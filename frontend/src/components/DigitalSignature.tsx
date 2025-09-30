@@ -34,6 +34,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
   const [typedSignature, setTypedSignature] = useState(prefillName);
   const [isSignatureLoaded, setIsSignatureLoaded] = useState(false);
   const [userCleared, setUserCleared] = useState(false);
+  const [userHasTyped, setUserHasTyped] = useState(false); // Track if user has manually typed
 
   // Load existing signature if provided (only if user hasn't cleared it)
   useEffect(() => {
@@ -91,16 +92,16 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
     }
   }, [signatureToLoad, title, onSignatureChange, isSignatureLoaded, userCleared]);
 
-  // Update typed signature when prefillName changes
+  // Update typed signature when prefillName changes (only if user hasn't manually typed)
   useEffect(() => {
-    if (prefillName && prefillName !== typedSignature) {
+    if (prefillName && !userHasTyped) {
       setTypedSignature(prefillName);
     }
-  }, [prefillName, typedSignature]);
+  }, [prefillName, userHasTyped]);
 
-  // Auto-generate signature when prefillName is provided and in type mode
+  // Auto-generate signature when prefillName changes
   useEffect(() => {
-    if (prefillName && signatureMode === 'type' && prefillName.trim() && !hasSignature) {
+    if (prefillName && prefillName.trim() && !userHasTyped && signatureMode === 'type') {
       const timer = setTimeout(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -110,19 +111,19 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
 
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         // Set signature style with professional signature font
         ctx.font = '16px "Homemade Apple", cursive';
         ctx.fillStyle = 'hsl(var(--signature-stroke))';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
+
         // Draw typed signature centered (accounting for device pixel ratio)
         const rect = canvas.getBoundingClientRect();
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
         ctx.fillText(prefillName, centerX, centerY);
-        
+
         setHasSignature(true);
         const signatureData = canvas.toDataURL('image/png');
         onSignatureChange(signatureData);
@@ -132,18 +133,12 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
           signatureTitle: title,
           signatureText: prefillName,
           base64Data: signatureData,
-          readableFormat: {
-            type: 'typed-auto',
-            text: prefillName,
-            size: Math.round(signatureData.length * 0.75),
-            hasContent: true
-          }
         });
-      }, 200);
+      }, 300);
 
       return () => clearTimeout(timer);
     }
-  }, [prefillName, signatureMode, hasSignature, title, onSignatureChange]);
+  }, [prefillName, userHasTyped, signatureMode, title, onSignatureChange]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -293,6 +288,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
     setHasSignature(false);
     setUserCleared(true); // Mark that user has cleared the signature
     setIsSignatureLoaded(false); // Allow new signatures to be loaded if needed
+    setUserHasTyped(false); // Reset user typed flag so prefillName can work again
     setTypedSignature(prefillName);
     onSignatureChange('');
 
@@ -349,7 +345,10 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
               <Input
                 id="typedSignature"
                 value={typedSignature}
-                onChange={(e) => setTypedSignature(e.target.value)}
+                onChange={(e) => {
+                  setTypedSignature(e.target.value);
+                  setUserHasTyped(true); // Mark that user has manually typed
+                }}
                 placeholder="Enter your full name"
                 className="text-lg"
               />

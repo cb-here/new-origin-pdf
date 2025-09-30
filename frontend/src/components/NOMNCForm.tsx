@@ -31,6 +31,7 @@ import {
   downloadNomncPDF,
 } from "@/lib/api";
 import { Link, useNavigate } from "react-router-dom";
+import { useNOMNCFields } from "@/contexts/NOMNCFieldsContext";
 
 interface NOMNCFormProps {
   mode?: "single" | "bulk";
@@ -38,6 +39,7 @@ interface NOMNCFormProps {
   isEditMode?: boolean;
   onCancelEdit?: () => void;
   onFormUpdated?: () => void;
+  onFormGenerated?: () => void;
 }
 
 export const NOMNCForm: React.FC<NOMNCFormProps> = ({
@@ -46,8 +48,15 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
   isEditMode = false,
   onCancelEdit,
   onFormUpdated,
+  onFormGenerated,
 }) => {
   const navigate = useNavigate();
+  const {
+    fields: nomncFields,
+    updateField: updateNOMNCField,
+    autoFillEnabled,
+    clearAllFields,
+  } = useNOMNCFields();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [bulkData, setBulkData] = useState([]);
@@ -68,6 +77,17 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
 
   const updateFormData = (field, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Update context directly when user types (no useEffect needed)
+    if (autoFillEnabled && !isEditMode) {
+      if (field === "patientName") {
+        updateNOMNCField("patientName", value);
+      } else if (field === "patientNumber") {
+        updateNOMNCField("patientNumber", value);
+      } else if (field === "patientOrRepresentitiveSignature") {
+        updateNOMNCField("signature", value);
+      }
+    }
   };
 
   const resetFormData = () => {
@@ -87,6 +107,7 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
     setCompletedSteps([]);
   };
 
+  // Load editing data or auto-fill from context on mount
   useEffect(() => {
     if (isEditMode && editingForm) {
       setFormData({
@@ -103,9 +124,32 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
           new Date().toISOString().split("T")[0],
       });
     } else if (!isEditMode) {
-      resetFormData();
+      // Auto-fill from context when creating a new form
+      const newFormData = {
+        patientNumber: nomncFields.patientNumber || "",
+        patientName: nomncFields.patientName || "",
+        serviceEndDate: "",
+        currentServiceType: "",
+        currentPlanInfo: "",
+        additionalInfo: "",
+        patientOrRepresentitiveSignature: nomncFields.signature || "",
+        patientOrRepresentitiveSignatureDate: new Date()
+          .toISOString()
+          .split("T")[0],
+      };
+      setFormData(newFormData);
     }
   }, [isEditMode, editingForm]);
+
+  // Cleanup: Clear context when component unmounts (e.g., when switching tabs)
+  useEffect(() => {
+    return () => {
+      // Only clear if not in edit mode
+      if (!isEditMode) {
+        clearAllFields();
+      }
+    };
+  }, [isEditMode, clearAllFields]);
 
   const handleBulkDataParsed = (data) => {
     setBulkData(data);
@@ -119,7 +163,19 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
 
     setIsBulkGenerating(true);
     try {
-      const result = await generateBulkNOMNCPDF(bulkData, false);
+      // Map snake_case to camelCase for API compatibility
+      const mappedBulkData = bulkData.map((row) => ({
+        patientNumber: row.patient_number,
+        patientName: row.patient_name,
+        serviceEndDate: row.effective_date,
+        currentServiceType: row.current_service_type,
+        currentPlanInfo: row.plan_contact_info || "",
+        additionalInfo: row.additional_info || "",
+        patientOrRepresentitiveSignature: row.sig_patient_or_rep,
+        patientOrRepresentitiveSignatureDate: row.sig_date || "",
+      }));
+
+      const result = await generateBulkNOMNCPDF(mappedBulkData, false);
 
       if (result.success) {
         toast.success(
@@ -150,7 +206,6 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
       "serviceEndDate",
       "currentServiceType",
       "patientOrRepresentitiveSignature",
-      "patientOrRepresentitiveSignatureDate",
     ];
     const missingFields = requiredFields.filter((field) => !formData[field]);
 
@@ -169,11 +224,30 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
 
         await downloadNomncPDF(editingForm._id, formData, formData.patientName);
 
+        // Clear form and context
+        resetFormData();
+        clearAllFields();
+
+        // Call parent callback and redirect
         onFormUpdated?.();
       } else {
         const payload = { patientData: formData };
         await generateNOMNCPDF(payload, formData.patientName, false);
         toast.success("NOMNC PDF generated and downloaded successfully!");
+
+        // Clear form and context
+        resetFormData();
+        clearAllFields();
+
+        // Call parent callback to switch to dashboard
+        if (onFormGenerated) {
+          onFormGenerated();
+        } else {
+          // Fallback: redirect to /nomnc page
+          setTimeout(() => {
+            navigate("/nomnc");
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error("Error with NOMNC form:", error);
@@ -435,6 +509,9 @@ export const NOMNCForm: React.FC<NOMNCFormProps> = ({
                               )
                             }
                             prefillName={formData.patientName}
+                            prefillSignature={
+                              formData.patientOrRepresentitiveSignature
+                            }
                           />
                         </div>
                         <div className="space-y-2">

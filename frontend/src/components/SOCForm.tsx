@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { FormData } from "@/types/form";
 import { DigitalSignature } from "./DigitalSignature";
+import { useSOCFields } from "@/contexts/SOCFieldsContext";
 
 const steps = [
   {
@@ -76,6 +77,7 @@ const steps = [
 
 export const SOCForm: React.FC = () => {
   const navigate = useNavigate();
+  const { fields: socFields, updateField: updateSOCField, autoFillEnabled } = useSOCFields();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -164,10 +166,35 @@ export const SOCForm: React.FC = () => {
   });
 
   const updateFormData = (field: keyof FormData, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+      };
+
+      // Auto-fill secondary fields when primary fields change
+      if (autoFillEnabled) {
+        // Update context
+        if (field === "patientName") {
+          updateSOCField("patientName", value);
+          // Also update secondary fields within the form
+          updated.billOfRightsPatientName = value;
+          updated.clientName = value;
+          updated.mdtPatient = value;
+        } else if (field === "mrNumber") {
+          updateSOCField("mrNumber", value);
+          updated.emergencyMrNumber = value;
+        } else if (field === "allergies") {
+          updateSOCField("allergies", value);
+          updated.emergencyAllergies = value;
+        } else if (field === "patientSignature") {
+          updateSOCField("signature", value);
+          updated.clientSignature = value;
+        }
+      }
+
+      return updated;
+    });
   };
 
   const nextStep = () => {
@@ -220,66 +247,58 @@ export const SOCForm: React.FC = () => {
       .join("");
   };
 
-  // Single effect to handle all field synchronization - prevents infinite loops
+  // Update SOC fields context when primary fields change (one-way sync)
   useEffect(() => {
+    if (autoFillEnabled) {
+      updateSOCField("patientName", formData.patientName);
+    }
+  }, [formData.patientName, autoFillEnabled]);
+
+  useEffect(() => {
+    if (autoFillEnabled) {
+      updateSOCField("mrNumber", formData.mrNumber);
+    }
+  }, [formData.mrNumber, autoFillEnabled]);
+
+  useEffect(() => {
+    if (autoFillEnabled) {
+      updateSOCField("allergies", formData.allergies);
+    }
+  }, [formData.allergies, autoFillEnabled]);
+
+  useEffect(() => {
+    if (autoFillEnabled) {
+      updateSOCField("signature", formData.patientSignature);
+    }
+  }, [formData.patientSignature, autoFillEnabled]);
+
+  // Auto-fill secondary fields from context when enabled
+  useEffect(() => {
+    if (!autoFillEnabled) return;
+
     const updates: Partial<FormData> = {};
 
-    // Sync patient names and generate initials
-    if (formData.patientName) {
-      if (formData.billOfRightsPatientName !== formData.patientName) {
-        updates.billOfRightsPatientName = formData.patientName;
-      }
-      if (formData.clientName !== formData.patientName) {
-        updates.clientName = formData.patientName;
-      }
-      if (formData.mdtPatient !== formData.patientName) {
-        updates.mdtPatient = formData.patientName;
-      }
-
-      // Note: Client initials are now handled by DigitalSignature components
-      // They will auto-generate signatures based on the initials
-    } else if (formData.clientName && !formData.patientName) {
-      // If patient name is empty but client name exists, use client name
-      updates.patientName = formData.clientName;
-      if (formData.billOfRightsPatientName !== formData.clientName) {
-        updates.billOfRightsPatientName = formData.clientName;
-      }
-      if (formData.mdtPatient !== formData.clientName) {
-        updates.mdtPatient = formData.clientName;
-      }
-
-      // Note: Client initials are now handled by DigitalSignature components
-      // They will auto-generate signatures based on the initials
+    // Only update if the SOC field has a value and the target field is different
+    if (socFields.patientName && formData.billOfRightsPatientName !== socFields.patientName) {
+      updates.billOfRightsPatientName = socFields.patientName;
+    }
+    if (socFields.patientName && formData.clientName !== socFields.patientName) {
+      updates.clientName = socFields.patientName;
+    }
+    if (socFields.patientName && formData.mdtPatient !== socFields.patientName) {
+      updates.mdtPatient = socFields.patientName;
     }
 
-    // Sync MR numbers
-    if (formData.mrNumber && formData.emergencyMrNumber !== formData.mrNumber) {
-      updates.emergencyMrNumber = formData.mrNumber;
-    } else if (formData.emergencyMrNumber && !formData.mrNumber) {
-      updates.mrNumber = formData.emergencyMrNumber;
+    if (socFields.mrNumber && formData.emergencyMrNumber !== socFields.mrNumber) {
+      updates.emergencyMrNumber = socFields.mrNumber;
     }
 
-    // Sync allergies
-    if (
-      formData.allergies &&
-      formData.emergencyAllergies !== formData.allergies
-    ) {
-      updates.emergencyAllergies = formData.allergies;
-    } else if (
-      formData.emergencyAllergies &&
-      formData.allergies !== formData.emergencyAllergies
-    ) {
-      updates.allergies = formData.emergencyAllergies;
+    if (socFields.allergies && formData.emergencyAllergies !== socFields.allergies) {
+      updates.emergencyAllergies = socFields.allergies;
     }
 
-    // Sync signatures
-    if (
-      formData.patientSignature &&
-      formData.clientSignature !== formData.patientSignature
-    ) {
-      updates.clientSignature = formData.patientSignature;
-    } else if (formData.clientSignature && !formData.patientSignature) {
-      updates.patientSignature = formData.clientSignature;
+    if (socFields.signature && formData.clientSignature !== socFields.signature) {
+      updates.clientSignature = socFields.signature;
     }
 
     // Apply all updates at once to prevent multiple re-renders
@@ -287,16 +306,11 @@ export const SOCForm: React.FC = () => {
       setFormData((prev) => ({ ...prev, ...updates }));
     }
   }, [
-    formData.patientName,
-    formData.clientName,
-    formData.billOfRightsPatientName,
-    formData.mdtPatient,
-    formData.mrNumber,
-    formData.emergencyMrNumber,
-    formData.allergies,
-    formData.emergencyAllergies,
-    formData.patientSignature,
-    formData.clientSignature,
+    socFields.patientName,
+    socFields.mrNumber,
+    socFields.allergies,
+    socFields.signature,
+    autoFillEnabled,
   ]);
 
   const saveProgress = async () => {

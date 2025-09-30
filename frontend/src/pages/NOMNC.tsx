@@ -231,7 +231,8 @@ const NOMNC = () => {
           <Tabs
             value={mode}
             onValueChange={(value) => {
-              if (value === "single" && isEditMode) {
+              // Reset editing state when switching away from single mode
+              if (value !== "single" && isEditMode) {
                 setEditingForm(null);
                 setIsEditMode(false);
               }
@@ -271,12 +272,17 @@ const NOMNC = () => {
                 </CardHeader>
               </Card>
               <NOMNCForm
+                key={isEditMode ? `edit-${editingForm?._id}` : 'new'}
                 mode="single"
                 editingForm={editingForm}
                 isEditMode={isEditMode}
                 onCancelEdit={handleCancelEdit}
                 onFormUpdated={() => {
                   handleCancelEdit();
+                  getForms();
+                  setMode("dashboard");
+                }}
+                onFormGenerated={() => {
                   getForms();
                   setMode("dashboard");
                 }}

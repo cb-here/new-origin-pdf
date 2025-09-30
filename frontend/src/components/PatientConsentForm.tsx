@@ -24,6 +24,7 @@ import { Loader2, Send, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { generatePatientConsentPDF, updatePatientConsentForm } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { usePatientConsentFields } from "@/contexts/PatientConsentFieldsContext";
 
 interface DisciplineFrequency {
   discipline: string;
@@ -36,6 +37,7 @@ interface PatientConsentFormProps {
   isEditMode?: boolean;
   onCancelEdit?: () => void;
   onFormUpdated?: () => void;
+  onFormGenerated?: () => void;
 }
 
 interface FormData {
@@ -75,8 +77,10 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
   isEditMode = false,
   onCancelEdit,
   onFormUpdated,
+  onFormGenerated,
 }) => {
   const navigate = useNavigate();
+  const { fields: consentFields, updateField: updateConsentField, autoFillEnabled, clearAllFields } = usePatientConsentFields();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -101,15 +105,20 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
   console.log("🚀 ~ PatientConsentForm ~ formData:", formData)
 
   const updateFormData = (field: keyof FormData, value: string) => {
-    setFormData((prev) => {
-      const newData = { ...prev, [field]: value };
+    setFormData((prev) => ({ ...prev, [field]: value }));
 
-      if (field === "patientName" && value.trim()) {
-        newData.patientSignature = value.trim();
+    // Update context directly when user types (no useEffect needed)
+    if (autoFillEnabled && !isEditMode) {
+      if (field === "patientName") {
+        updateConsentField("patientName", value);
+      } else if (field === "mrn") {
+        updateConsentField("mrn", value);
+      } else if (field === "patientSignature") {
+        updateConsentField("patientSignature", value);
+      } else if (field === "agencyRepSignature") {
+        updateConsentField("agencyRepSignature", value);
       }
-
-      return newData;
-    });
+    }
   };
 
   const resetFormData = () => {
@@ -134,6 +143,7 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
     setCompletedSteps([]);
   };
 
+  // Load editing data or auto-fill from context on mount
   useEffect(() => {
     if (isEditMode && editingForm) {
       const startMonthValue =
@@ -166,9 +176,36 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
         endMonth: endMonthValue,
       });
     } else if (!isEditMode) {
-      resetFormData();
+      // Auto-fill from context when creating a new form
+      setFormData({
+        patientName: consentFields.patientName || "",
+        mrn: consentFields.mrn || "",
+        soc: "",
+        roc: "",
+        certificationStart: "",
+        certificationEnd: "",
+        disciplineFrequencies: Array(6)
+          .fill(null)
+          .map(() => ({ discipline: "", newFrequency: "" })),
+        patientSignature: consentFields.patientSignature || "",
+        patientSignatureDate: "",
+        agencyRepSignature: consentFields.agencyRepSignature || "",
+        agencyRepDate: "",
+        startMonth: "",
+        endMonth: "",
+      });
     }
   }, [isEditMode, editingForm]);
+
+  // Cleanup: Clear context when component unmounts (e.g., when switching tabs)
+  useEffect(() => {
+    return () => {
+      // Only clear if not in edit mode
+      if (!isEditMode) {
+        clearAllFields();
+      }
+    };
+  }, [isEditMode, clearAllFields]);
 
   const steps = [
     {
@@ -265,10 +302,30 @@ const PatientConsentForm: React.FC<PatientConsentFormProps> = ({
         toast.success("Patient Consent form updated successfully!");
 
         await generatePatientConsentPDF(formData, formData.patientName, true);
+
+        // Clear form and context
+        resetFormData();
+        clearAllFields();
+
+        // Call parent callback and redirect
         onFormUpdated?.();
       } else {
         await generatePatientConsentPDF(formData, formData.patientName, false);
         toast.success("Patient Consent PDF generated successfully!");
+
+        // Clear form and context
+        resetFormData();
+        clearAllFields();
+
+        // Call parent callback to switch to dashboard
+        if (onFormGenerated) {
+          onFormGenerated();
+        } else {
+          // Fallback: redirect to /patient-consent page
+          setTimeout(() => {
+            navigate("/patient-consent");
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error("Error with Patient Consent form:", error);

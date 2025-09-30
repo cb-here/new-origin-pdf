@@ -213,7 +213,8 @@ const PatientConsent = () => {
           <Tabs
             value={mode}
             onValueChange={(v) => {
-              if (v === "single" && isEditMode) {
+              // Reset editing state when switching away from single mode
+              if (v !== "single" && isEditMode) {
                 setEditingForm(null);
                 setIsEditMode(false);
               }
@@ -252,6 +253,7 @@ const PatientConsent = () => {
                 </CardHeader>
               </Card>
               <PatientConsentForm
+                key={isEditMode ? `edit-${editingForm?._id}` : 'new'}
                 mode="single"
                 editingForm={editingForm}
                 isEditMode={isEditMode}
@@ -263,6 +265,10 @@ const PatientConsent = () => {
                 onFormUpdated={() => {
                   setEditingForm(null);
                   setIsEditMode(false);
+                  getConsents();
+                  setMode("dashboard");
+                }}
+                onFormGenerated={() => {
                   getConsents();
                   setMode("dashboard");
                 }}
