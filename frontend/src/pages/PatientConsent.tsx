@@ -47,6 +47,15 @@ const PatientConsent = () => {
           <span className="block text-center w-full">-</span>
         ),
     },
+    {
+      label: "ROC",
+      render: (item) =>
+        item?.soc ? (
+          <span>{formatDate(item.roc)}</span>
+        ) : (
+          <span className="block text-center w-full">-</span>
+        ),
+    },
   ];
 
   const [mode, setMode] = useState<"single" | "bulk" | "dashboard">("single");

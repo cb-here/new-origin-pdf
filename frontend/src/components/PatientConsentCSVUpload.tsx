@@ -230,7 +230,11 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
       // Parse data rows
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (!line) continue;
+
+        // Skip empty, whitespace-only, or comma-only rows
+        if (!line || line.length === 0 || line.split(',').every(v => v.trim() === '')) {
+          continue;
+        }
 
         const values = line
           .split(",")

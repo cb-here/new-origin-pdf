@@ -390,11 +390,11 @@ export async function generateBulkNOMNCPDF(
   try {
     const processedBulkData = bulkData.map((item) => ({
       ...item,
-      sig_patient_or_rep:
-        item.sig_patient_or_rep &&
-        !item.sig_patient_or_rep.startsWith("data:image/")
-          ? convertTextToSignature(item.sig_patient_or_rep)
-          : item.sig_patient_or_rep,
+      patientOrRepresentitiveSignature:
+        item.patientOrRepresentitiveSignature &&
+        !item.patientOrRepresentitiveSignature.startsWith("data:image/")
+          ? convertTextToSignature(item.patientOrRepresentitiveSignature)
+          : item.patientOrRepresentitiveSignature,
     }));
 
     const payload = { bulkData: processedBulkData };
