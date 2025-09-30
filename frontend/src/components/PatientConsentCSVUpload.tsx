@@ -74,6 +74,27 @@ interface CSVUploadProps {
   onDataParsed: (data: any[]) => void;
 }
 
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const getMonthName = (monthValue) => {
+  if (!monthValue) return "";
+  const monthIndex = parseInt(monthValue, 10) - 1;
+  return monthNames[monthIndex] || "";
+};
+
 const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
   onDataParsed,
 }) => {
@@ -494,17 +515,21 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
                           End Month
                         </TableHead>
                         <TableHead className="whitespace-nowrap">
-                          Discipline 1
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap">
-                          Frequency 1
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap">
                           Patient Signature
                         </TableHead>
                         <TableHead className="whitespace-nowrap">
                           Agency Signature
                         </TableHead>
+                        {Array.from({ length: 6 }, (_, i) => (
+                          <React.Fragment key={`discipline-header-${i}`}>
+                            <TableHead className="whitespace-nowrap">
+                              Discipline {i + 1}
+                            </TableHead>
+                            <TableHead className="whitespace-nowrap">
+                              Frequency {i + 1}
+                            </TableHead>
+                          </React.Fragment>
+                        ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -529,16 +554,10 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
                             {row.certificationEnd}
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
-                            {row.startMonth}
+                            {getMonthName(row.startMonth)}
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
-                            {row.endMonth}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {row.discipline1 || "-"}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {row.newFrequency1 || "-"}
+                            {getMonthName(row.endMonth)}
                           </TableCell>
                           <TableCell className="whitespace-nowrap max-w-32 truncate">
                             {row.patientSignature}
@@ -546,6 +565,18 @@ const PatientConsentCSVUpload: React.FC<CSVUploadProps> = ({
                           <TableCell className="whitespace-nowrap max-w-32 truncate">
                             {row.agencyRepSignature}
                           </TableCell>
+                          {Array.from({ length: 6 }, (_, i) => (
+                            <React.Fragment key={`discipline-cell-${i}`}>
+                              <TableCell className="whitespace-nowrap">
+                                {row[`discipline${i + 1}` as keyof CSVRow] ||
+                                  "-"}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {row[`newFrequency${i + 1}` as keyof CSVRow] ||
+                                  "-"}
+                              </TableCell>
+                            </React.Fragment>
+                          ))}
                         </TableRow>
                       ))}
                     </TableBody>

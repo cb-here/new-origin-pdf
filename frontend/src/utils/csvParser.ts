@@ -38,7 +38,14 @@ export const parseCSVText = (csvText: string): CSVParseResult => {
 
   // Parse data rows
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
+    const line = lines[i].trim();
+    
+    // Skip empty, whitespace-only, or comma-only rows
+    if (!line || line.length === 0 || line.split(',').every(v => v.trim() === '')) {
+      continue;
+    }
+
+    const values = line.split(',').map(v => v.trim());
     
     if (values.length !== headers.length) {
       errors.push(`Row ${i + 1}: Expected ${headers.length} columns, got ${values.length}`);
@@ -91,4 +98,4 @@ export const generateCSVTemplate = (): string => {
   ];
 
   return [headers.join(','), sampleRow.join(',')].join('\n');
-};
+}

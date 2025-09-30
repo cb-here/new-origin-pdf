@@ -1,9 +1,21 @@
 export const SERVICE_TYPE_OPTIONS = [
-  "Occuptional Therapy",
+  "Occupational Therapy", 
   "Speech Therapy",
   "Skilled Nursing",
   "Physical Therapy",
+  "Skilled Nurse",
 ];
+
+export interface NOMNCFormData {
+  patient_number: string;
+  patient_name: string;
+  effective_date: string;
+  current_service_type: string;
+  plan_contact_info?: string;
+  additional_info?: string;
+  sig_patient_or_rep: string;
+  sig_date?: string; 
+}
 
 export const NOMNC_FIELD_SPEC = [
   {
@@ -64,6 +76,6 @@ export const NOMNC_FIELD_SPEC = [
     label: "Date",
     type: "date",
     page: 2,
-    required: true,
+    required: false, // Updated to false as per your requirement
   },
 ];
