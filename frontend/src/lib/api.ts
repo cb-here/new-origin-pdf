@@ -100,7 +100,7 @@ export function transformFormDataToBackend(formData) {
     mrn: formData.mrNumber || "",
     socDate: formData.socDate || "",
     referralSourceDate: formData.referralSourceDate || "",
-    referralComment: formData.referralComment ? `- ${formData.referralComment}` : "",
+    referralComment: formData.referralComment || "",
     patientName2: formData.patientName || "", // Duplicate field
     agencyName: formData.agencyName || "",
     servicesPerception: formData.reasonForServices || "",

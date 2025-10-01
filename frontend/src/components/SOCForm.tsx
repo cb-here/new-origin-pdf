@@ -190,6 +190,8 @@ export const SOCForm: React.FC = () => {
         } else if (field === "patientSignature") {
           updateSOCField("signature", value);
           updated.clientSignature = value;
+        } else if (field === "physician") {
+          updated.mdtPhysician = value;
         }
       }
 
@@ -1506,7 +1508,7 @@ export const SOCForm: React.FC = () => {
                   <Label htmlFor="mdtPhysician">Physician</Label>
                   <Input
                     id="mdtPhysician"
-                    value={formData.physician}
+                    value={formData.mdtPhysician}
                     onChange={(e) =>
                       updateFormData("mdtPhysician", e.target.value)
                     }
