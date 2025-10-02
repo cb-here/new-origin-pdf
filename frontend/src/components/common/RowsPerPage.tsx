@@ -34,6 +34,30 @@ export default function RowsPerPage({ rowsPerPage, handleRowsPerPageChange }) {
           >
             100
           </option>
+          <option
+            value="200"
+            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+          >
+            200
+          </option>
+          <option
+            value="300"
+            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+          >
+            300
+          </option>
+          <option
+            value="400"
+            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+          >
+            400
+          </option>
+          <option
+            value="500"
+            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+          >
+            500
+          </option>
         </select>
         <span className="absolute z-30 text-gray-500 -translate-y-1/2 right-2 top-1/2 dark:text-gray-400">
           <svg
